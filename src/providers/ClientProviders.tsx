@@ -1,31 +1,23 @@
-// src/providers/ClientProviders.tsx
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { ThemeProvider } from "@mui/material/styles";
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import { initI18n } from "@/lib/i18n";
-import theme from "@/theme";
-import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
-import AppLayout from "@/components/common/layout/AppLayout";
-import CssBaseline from "@mui/material/CssBaseline";
 import { useNdk } from "nostr-hooks";
-import { SnackbarProvider } from "@/context/SnackbarContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLanguageSync } from "@/hooks/useLanguageSync";
+import type { NDKNip07Signer } from "@nostr-dev-kit/ndk";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (was cacheTime)
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       retry: (failureCount, error) => {
-        // Don't retry on 404s or auth errors
         if (error && typeof error === "object" && "status" in error) {
-          if ((error as any).status === 404 || (error as any).status === 401) {
+          if ((error as { status: number }).status === 404 || (error as { status: number }).status === 401) {
             return false;
           }
         }
@@ -33,97 +25,57 @@ const queryClient = new QueryClient({
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
-    mutations: {
-      retry: 1,
-    },
+    mutations: { retry: 1 },
   },
 });
 
-function ProviderContent({ children }: { children: ReactNode }) {
+const RELAY_URLS = ["wss://relay.damus.io"];
+
+function BaseProviderContent({ children }: { children: ReactNode }) {
   const { initNdk, ndk } = useNdk();
-  const [nostrLoginReady, setNostrLoginReady] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  // Prevent hydration mismatch by only rendering on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Sync language preferences after hydration
   useLanguageSync();
 
-  // Initialize nostr-login with floating manager (like nostr.band)
+  useEffect(() => { setIsClient(true); }, []);
+
   useEffect(() => {
-    if (!isClient) return; // Only run on client side
+    if (!isClient) return;
+
+    const init = async () => {
+      if (typeof window !== "undefined" && window.nostr) {
+        const { NDKNip07Signer: Signer } = await import("@nostr-dev-kit/ndk");
+        const signer: NDKNip07Signer = new Signer();
+        initNdk({ explicitRelayUrls: RELAY_URLS, signer });
+      } else {
+        initNdk({ explicitRelayUrls: RELAY_URLS });
+      }
+    };
 
     import("nostr-login")
-      .then(async ({ init }) => {
-        init({
+      .then(async ({ init: initLogin }) => {
+        initLogin({
           bunkers: "nsec.app,highlighter.com,amber.app",
           theme: "default",
           darkMode: false,
           perms: "sign_event:1,nip04_encrypt,nip04_decrypt",
           noBanner: false,
           methods: ["connect", "extension", "readOnly", "local"],
-          onAuth: async (npub, options) => {
-            console.log("User authenticated:", npub, options);
-            // Re-initialize NDK with the new signer
-            setTimeout(async () => {
-              await initializeNdkWithSigner();
-            }, 200);
+          onAuth: async () => {
+            setTimeout(init, 200);
           },
         });
-        setNostrLoginReady(true);
+        await init();
       })
-      .catch((error) => console.log("Failed to load nostr-login", error));
-  }, [isClient]);
-
-  // Initialize NDK with signer when window.nostr is available
-  const initializeNdkWithSigner = async () => {
-    if (typeof window !== "undefined" && window.nostr) {
-      const { NDKNip07Signer } = await import("@nostr-dev-kit/ndk");
-      const signer = new NDKNip07Signer();
-
-      initNdk({
-        explicitRelayUrls: [
-          "wss://relay.damus.io",
-        ],
-        signer, // This is the key - pass the signer to NDK
-      });
-    }
-  };
-
-  // Initialize NDK without signer when logged out
-  const initializeNdkWithoutSigner = async () => {
-    initNdk({
-      explicitRelayUrls: [
-        "wss://relay.damus.io",
-      ],
-      // No signer when logged out
-    });
-  };
-
-  useEffect(() => {
-    if (!nostrLoginReady || !isClient) return;
-
-    // Check if user is already logged in and initialize accordingly
-    if (typeof window !== "undefined" && window.nostr) {
-      initializeNdkWithSigner();
-    } else {
-      initializeNdkWithoutSigner();
-    }
-  }, [initNdk, nostrLoginReady, isClient]);
+      .catch((err) => console.error("nostr-login failed to load", err));
+  }, [isClient, initNdk]);
 
   useEffect(() => {
     if (!ndk) return;
     ndk.connect();
   }, [ndk]);
 
-  return (
-    <SnackbarProvider>
-      <AppLayout>{children}</AppLayout>
-    </SnackbarProvider>
-  );
+  return <>{children}</>;
 }
 
 export default function ClientProviders({
@@ -138,13 +90,7 @@ export default function ClientProviders({
   return (
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18nInstance}>
-        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
-          <ThemeProvider theme={theme}>
-            <InitColorSchemeScript attribute="class" />
-            <CssBaseline />
-            <ProviderContent>{children}</ProviderContent>
-          </ThemeProvider>
-        </AppRouterCacheProvider>
+        <BaseProviderContent>{children}</BaseProviderContent>
       </I18nextProvider>
     </QueryClientProvider>
   );

@@ -2,24 +2,15 @@ import { headers } from "next/headers";
 import ClientProviders from "@/providers/ClientProviders";
 import type { Metadata } from "next";
 import Script from "next/script";
-import DefaultFloatingActionButton from "@/components/common/layout/DefaultFloatingActionButton";
-
-// Import dayjs config early to ensure proper locale setup
+import { GeistSans } from "geist/font/sans";
 import "@/utils/app-init";
+import "./globals.css";
 
-// Base metadata for the application
 export const metadata: Metadata = {
   metadataBase: new URL("https://meetstr.com"),
   title: "Meetstr",
   description: "Decentralized event discovery and calendar platform on Nostr",
-  keywords: [
-    "nostr",
-    "events",
-    "calendar",
-    "meetups",
-    "decentralized",
-    "bitcoin",
-  ],
+  keywords: ["nostr", "events", "calendar", "meetups", "decentralized", "bitcoin"],
   authors: [{ name: "Gil Lohner", url: "https://riginode.xyz" }],
   creator: "Gil Lohner",
   publisher: "Gil Lohner",
@@ -39,15 +30,13 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://meetstr.com",
     title: "Meetstr - Decentralized Event Discovery",
-    description:
-      "Discover and organize events on the decentralized Nostr protocol",
+    description: "Discover and organize events on the decentralized Nostr protocol",
     siteName: "Meetstr",
   },
   twitter: {
     card: "summary_large_image",
     title: "Meetstr - Decentralized Event Discovery",
-    description:
-      "Discover and organize events on the decentralized Nostr protocol",
+    description: "Discover and organize events on the decentralized Nostr protocol",
     creator: "@meetstr",
   },
   icons: {
@@ -56,20 +45,10 @@ export const metadata: Metadata = {
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon.ico", type: "image/x-icon" },
     ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     other: [
-      {
-        url: "/android-chrome-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        url: "/android-chrome-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
     ],
   },
   manifest: "/site.webmanifest",
@@ -84,7 +63,12 @@ export default async function RootLayout({
   const langHeader = headersList.get("x-lang") || "en";
 
   return (
-    <html lang={langHeader} suppressHydrationWarning>
+    <html
+      lang={langHeader}
+      className={GeistSans.variable}
+      data-theme="dark"
+      suppressHydrationWarning
+    >
       <head>
         <Script
           defer
@@ -95,7 +79,6 @@ export default async function RootLayout({
       <body suppressHydrationWarning>
         <ClientProviders serverLang={langHeader}>
           {children}
-          <DefaultFloatingActionButton />
         </ClientProviders>
       </body>
     </html>

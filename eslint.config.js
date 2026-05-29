@@ -1,5 +1,4 @@
 import next from "@next/eslint-plugin-next";
-import tailwindcss from "eslint-plugin-tailwindcss";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 
@@ -8,7 +7,6 @@ export default [
     ignores: ["**/node_modules/**", ".next/**", "dist/**", "out/**"],
   },
   {
-    // Only process TS files
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parser: tsParser,
@@ -22,7 +20,6 @@ export default [
     plugins: {
       "@next/next": next,
       "@typescript-eslint": tseslint,
-      tailwindcss,
     },
     rules: {
       "react/react-in-jsx-scope": "off",

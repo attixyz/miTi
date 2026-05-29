@@ -1,12 +1,154 @@
-/* Custom styles for the Nostr Login banner */
-.nl-banner {
-  z-index: 1000 !important;
+@import "tailwindcss";
+
+/* ─── Nostr Login banner z-index ─────────────────────────────────────────── */
+.nl-banner { z-index: 1000 !important; }
+.nl-banner > div { z-index: 1001 !important; }
+.nl-banner .nl-action-button { z-index: 1002 !important; }
+
+/* ─── Aetheric Lumina — light theme ─────────────────────────────────────── */
+[data-theme="light"] {
+  --background:              #fbf8ff;
+  --surface:                 #fbf8ff;
+  --surface-container-low:   #f5f2f9;
+  --surface-container:       #efedf4;
+  --surface-container-high:  #eae7ee;
+  --on-surface:              #1b1b20;
+  --on-surface-variant:      #4d4352;
+  --outline:                 #7f7383;
+  --outline-variant:         #d0c2d4;
+
+  --primary:                 #7c2db1;
+  --on-primary:              #ffffff;
+  --primary-container:       #f3daff;
+  --on-primary-container:    #2f004c;
+
+  --secondary:               #00677f;
+  --on-secondary:            #ffffff;
+  --secondary-container:     #b7eaff;
+  --on-secondary-container:  #001f28;
+
+  --error:                   #ba1a1a;
+  --on-error:                #ffffff;
+  --error-container:         #ffdad6;
+
+  /* spacing — 8px base (Lumina spec) */
+  --spacing-xs:   4px;
+  --spacing-sm:   8px;
+  --spacing-md:   16px;
+  --spacing-lg:   24px;
+  --spacing-xl:   48px;
+  --spacing-2xl:  80px;
+  --margin-mobile:  16px;
+  --margin-desktop: 64px;
+  --gutter:         24px;
+
+  /* radius */
+  --radius-sm:   0.5rem;
+  --radius-md:   1rem;
+  --radius-lg:   1.5rem;
+  --radius-xl:   2rem;
+  --radius-2xl:  3rem;
+  --radius-full: 9999px;
+
+  /* elevation */
+  --shadow-card: 0 4px 12px 0 rgb(124 45 177 / 0.06);
+  --shadow-overlay: 0 8px 24px 0 rgb(124 45 177 / 0.10);
 }
 
-.nl-banner > div {
-  z-index: 1001 !important;
+/* ─── Aetheric Technical — dark theme ───────────────────────────────────── */
+[data-theme="dark"] {
+  --background:              #151217;
+  --surface:                 #1e1a20;
+  --surface-container-low:   #221e24;
+  --surface-container:       #2c292e;
+  --surface-container-high:  #373339;
+  --on-surface:              #e8e0e8;
+  --on-surface-variant:      #d0c2d1;
+  --outline:                 #998d9b;
+  --outline-variant:         #4d4450;
+
+  --primary:                 #e9b3ff;
+  --on-primary:              #4e0b6d;
+  --primary-container:       #632581;
+  --on-primary-container:    #f7d8ff;
+
+  --secondary:               #e5b4ff;
+  --on-secondary:            #4a146a;
+  --secondary-container:     #632e82;
+  --on-secondary-container:  #f5d9ff;
+
+  --error:                   #ffb4ab;
+  --on-error:                #690005;
+  --error-container:         #93000a;
+
+  /* spacing — standardized to 8px base (same as Lumina for consistency) */
+  --spacing-xs:   4px;
+  --spacing-sm:   8px;
+  --spacing-md:   16px;
+  --spacing-lg:   24px;
+  --spacing-xl:   48px;
+  --spacing-2xl:  64px;
+  --margin-mobile:  16px;
+  --margin-desktop: 48px;
+  --gutter:         24px;
+
+  /* radius — same canonical scale as light theme */
+  --radius-sm:   0.5rem;
+  --radius-md:   1rem;
+  --radius-lg:   1.5rem;
+  --radius-xl:   2rem;
+  --radius-2xl:  3rem;
+  --radius-full: 9999px;
+
+  /* elevation — purple-tinted glow */
+  --shadow-card: 0 4px 24px 0 rgb(99 37 129 / 0.40);
+  --shadow-overlay: 0 8px 32px 0 rgb(99 37 129 / 0.50);
 }
 
-.nl-banner .nl-action-button {
-  z-index: 1002 !important;
+/* ─── Tailwind theme mapping ─────────────────────────────────────────────── */
+@theme inline {
+  --color-background:             var(--background);
+  --color-surface:                var(--surface);
+  --color-surface-low:            var(--surface-container-low);
+  --color-surface-base:           var(--surface-container);
+  --color-surface-high:           var(--surface-container-high);
+  --color-on-surface:             var(--on-surface);
+  --color-on-surface-variant:     var(--on-surface-variant);
+  --color-outline:                var(--outline);
+  --color-outline-variant:        var(--outline-variant);
+  --color-primary:                var(--primary);
+  --color-on-primary:             var(--on-primary);
+  --color-primary-container:      var(--primary-container);
+  --color-on-primary-container:   var(--on-primary-container);
+  --color-secondary:              var(--secondary);
+  --color-on-secondary:           var(--on-secondary);
+  --color-secondary-container:    var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-error:                  var(--error);
+  --color-on-error:               var(--on-error);
+  --color-error-container:        var(--error-container);
+
+  --spacing-xs:   var(--spacing-xs);
+  --spacing-sm:   var(--spacing-sm);
+  --spacing-md:   var(--spacing-md);
+  --spacing-lg:   var(--spacing-lg);
+  --spacing-xl:   var(--spacing-xl);
+  --spacing-2xl:  var(--spacing-2xl);
+
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-xl:   var(--radius-xl);
+  --radius-2xl:  var(--radius-2xl);
+  --radius-full: var(--radius-full);
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ─── Base reset scoped to nova pages ───────────────────────────────────── */
+[data-theme] {
+  background-color: var(--background);
+  color: var(--on-surface);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
