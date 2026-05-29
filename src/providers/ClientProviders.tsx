@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { initI18n } from "@/lib/i18n";
 import { useNdk } from "nostr-hooks";
@@ -34,21 +34,28 @@ const RELAY_URLS = ["wss://relay.damus.io"];
 function BaseProviderContent({ children }: { children: ReactNode }) {
   const { initNdk, ndk } = useNdk();
   const [isClient, setIsClient] = useState(false);
+  const initialized = useRef(false);
+  // Capture initNdk in a ref so the effect below doesn't re-fire when the
+  // function reference changes on re-renders (nostr-hooks returns a new ref
+  // each render, which would cause an infinite setState loop).
+  const initNdkRef = useRef(initNdk);
+  useEffect(() => { initNdkRef.current = initNdk; }, [initNdk]);
 
   useLanguageSync();
 
   useEffect(() => { setIsClient(true); }, []);
 
   useEffect(() => {
-    if (!isClient) return;
+    if (!isClient || initialized.current) return;
+    initialized.current = true;
 
     const init = async () => {
       if (typeof window !== "undefined" && window.nostr) {
         const { NDKNip07Signer: Signer } = await import("@nostr-dev-kit/ndk");
         const signer: NDKNip07Signer = new Signer();
-        initNdk({ explicitRelayUrls: RELAY_URLS, signer });
+        initNdkRef.current({ explicitRelayUrls: RELAY_URLS, signer });
       } else {
-        initNdk({ explicitRelayUrls: RELAY_URLS });
+        initNdkRef.current({ explicitRelayUrls: RELAY_URLS });
       }
     };
 
@@ -68,7 +75,7 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
         await init();
       })
       .catch((err) => console.error("nostr-login failed to load", err));
-  }, [isClient, initNdk]);
+  }, [isClient]);
 
   useEffect(() => {
     if (!ndk) return;
