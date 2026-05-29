@@ -21,7 +21,9 @@ Production runs on port 4000 via PM2 (`ecosystem.config.cjs`).
 - **Nostr**: `@nostr-dev-kit/ndk` v2 + `ndk-cache-dexie` (IndexedDB cache), nostr-hooks, nostr-tools, nostr-login
 - **Data fetching**: TanStack React Query v5
 - **Date/time**: dayjs with utc + timezone plugins
+- **Timezone from coords**: `tz-lookup` (browser-safe lat/lon → IANA; used when a location is picked in the create form)
 - **Location search**: leaflet-geosearch (OpenStreetMapProvider → Nominatim)
+- **IndexedDB**: `dexie` (direct dep) — geocode cache; also bundled transitively by `ndk-cache-dexie`
 - **File uploads**: blossom-client-sdk → blossom.nostr.build
 - **i18n**: i18next + react-i18next (English, German, Spanish)
 - **Path alias**: `@/` → `src/`
@@ -40,7 +42,8 @@ src/
     calendars/                      # browse calendars
     event/[id]/                     # event detail page
     events/                         # main events feed (default landing)
-    new-calendar/                   # create calendar
+    new-event/                      # create event (Phase 4 — nova create form)
+    new-calendar/                   # create calendar (legacy MUI)
   components/
     common/
       blossoms/                     # image upload (Blossom protocol)
@@ -91,6 +94,12 @@ src/
         NovaEventMap.tsx            # progressive OSM embed + Overpass payment badges + map links
         NovaEventRsvp.tsx           # RSVP segmented control (Going / Maybe / Can't go)
         NovaAddToCalendar.tsx       # Google + .ics download buttons
+      create/                       # event creation (Phase 4)
+        NovaCreateEventPage.tsx     # form composition + submit; tz auto-detect via tz-lookup
+        useCreateEvent.ts           # publish kind 31923 (NDK-native); timezone SAVE fix lives here
+        CoverImageInput.tsx         # blossom cover upload (reuses useBlossomUpload)
+        LocationSearchInput.tsx     # debounced Nominatim combobox → coords (drives tz + geohash)
+        TagInput.tsx                # chip input (hashtags / reference links)
   providers/
     ClientProviders.tsx             # NDK init, nostr-login, React Query, i18n (no MUI)
   services/
@@ -105,7 +114,8 @@ src/
     location/
       geohash.ts                    # encode/decode geohash (custom implementation)
       loader.ts                     # DataLoader wrapper for batched Nominatim calls
-      locationUtils.ts              # Nominatim calls, Haversine, hardcoded city dict
+      locationUtils.ts              # Nominatim calls, Haversine, legacy hardcoded city dict (Phase 6 removal)
+      geocodeCache.ts               # Nominatim + Dexie geocoding cache (Phase 4 — replaces the dict)
       osmTags.ts                    # Overpass API for OSM tags (Bitcoin payment info)
     nostr/
       eventCacheUtils.ts            # in-memory Map cache (legacy — used by PopularCalendars; delete in Phase 6)
@@ -174,25 +184,17 @@ src/
 
 ## Known Bugs / Limitations
 
-### Relay filtering - #5
-- `since`/`until` in NDK filters apply to `created_at`, **not** NIP-52 `start` tag
-- Events published more than 7 days ago with future start dates are missed
-
 ### Location / distance filter
-- `isLocationWithinRadius()` only resolves coordinates for ~30 hardcoded DACH cities
-- Any other location string → no coordinates → radius filter excludes the event
-- Fix: geocode location strings via Nominatim and cache results in IndexedDB (Dexie)
+- The legacy `isLocationWithinRadius()` only resolves coordinates for ~30 hardcoded DACH cities (`LOCATION_NORMALIZATIONS` in `locationUtils.ts`), used only by the legacy `EventFilters.tsx`.
+- **Replacement built in Phase 4:** `geocodeCache.ts` geocodes arbitrary location strings via Nominatim and caches coords in IndexedDB (Dexie, 30-day TTL), keyed by the normalised string. The create form pre-warms it on every location pick. Phase 5's radius filter consumes it; the hardcoded dict + `EventFilters` are deleted together in Phase 6.
 
-### Nominatim language - #6
-- `FormGeoSearchField` uses `leaflet-geosearch` with no `accept-language` param
-- Nominatim returns names in browser language: Italian users get "Londra", "San Paolo"
-- Saved location strings are inconsistent across users → text matching breaks
-
-A quickfix forced to use English, but I prefer local language.
+### Nominatim language - #6 (still open)
+- `FormGeoSearchField` (legacy) and the nova `LocationSearchInput` both pass `accept-language: "en"` so saved location strings stay consistent across users.
+- Trade-off: Italian users see "London" instead of "Londra". The preference for local-language names (which breaks cross-user text matching) is still unresolved — out of Phase 4 scope.
 
 ### Timezone handling
 - **Display half — FIXED in Phase 3.** The nova detail page formats via `eventSchedule.ts`, which passes `start_tzid`/`end_tzid` into `Intl.DateTimeFormat` with `timeZone` + `timeZoneName:"short"` (e.g. "9:00 AM – 5:00 PM EST"). Invalid IANA ids fall back to the viewer's local zone. The legacy `EventTimeDisplay` (MUI) still ignores tzid but is no longer on the detail route.
-- **Save half — still broken (Phase 4).** Date picker creates dayjs objects in the browser's local timezone, ignoring the selected `start_tzid`: a Rome user picking "09:00" for a Tokyo event saves 09:00 Rome time. Fix (saving): `dayjs.tz(pickedDateTime, selectedTimezone).unix()`.
+- **Save half — FIXED in Phase 4.** The nova create form (`useCreateEvent.ts`) interprets the picked wall-clock time in the selected zone via `dayjs.tz(wallClock, timezone).unix()`, and the timezone is auto-detected from the picked location's coordinates with `tz-lookup` (user-overridable). The legacy `CreateNewEventDialog` (MUI) still has the bug but is off the nova route.
 
 ### Blossom server
 - Image upload server hardcoded to `blossom.nostr.build`
@@ -205,8 +207,6 @@ Events don't load when clicking "open in a new tab" (background tab).
 
 ## Performance Notes
 
-- Haversine distance formula on 2000 events: < 1ms, not a concern
-- The expensive part of distance filtering is geocoding location strings (Nominatim, rate-limited at ~1 req/sec)
 - Recommended: cache geocoded coordinates in IndexedDB (Dexie), keyed by normalised location string, TTL ~30 days
 
 ## Caching
@@ -224,13 +224,13 @@ Events don't load when clicking "open in a new tab" (background tab).
 
 Translations in `public/locales/{en,de,es}/translation.json`.  
 Language detected from cookies (`lang`, `i18next`) or `Accept-Language` header.  
-Italian users get German fallback in dayjs locale (`dayjsConfig.ts:33`).
+Italian users get German fallback in dayjs locale (`dayjsConfig.ts:33`), but should use English. Any language that hasn't a translation should fallback to English.
 
 ## Future Improvements
 
-### Nova UI — Phase 3 complete (branch: nova-event-detail)
+### Nova UI — Phase 4 complete (branch: nova-event-creation)
 
-The nova UI rebuild is in progress. Phases 1, 2 and 3 are done.
+The nova UI rebuild is in progress. Phases 1–4 are done.
 
 **Phase 1 (branch: nova-foundation):**
 - `ClientProviders` stripped to base layer (NDK, React Query, i18n, nostr-login — no MUI)
@@ -251,8 +251,15 @@ The nova UI rebuild is in progress. Phases 1, 2 and 3 are done.
 - New event detail route: MUI `EventOverview` replaced by `NovaEventDetail` (`EventPageClient` uses `use(params)` + nova). Skeleton-first SSR shell; `useNovaEvent` subscribes cache-first so cached text paints instantly while cover image, map (Nominatim) and Overpass payment badges fill in progressively.
 - RSVP is functional and nova-native (`useNovaRsvp`): publishes kind 31925, retracts the prior RSVP via a kind-5 deletion, prompts `nlLaunch` login when logged out. No SnackbarContext/i18next dependency (not in the stripped providers).
 - Like button: local visual toggle only, **publishes nothing** (deferred). Flag menu (spam/block/hide): UI only, handlers are placeholders pending moderation logic.
-- Timezone *display* fixed via `eventSchedule.ts` (see Timezone handling above). Save-side fix remains Phase 4.
+- Timezone *display* fixed via `eventSchedule.ts` (see Timezone handling above). Save-side fix landed in Phase 4.
 - "Related Events" (in the design) intentionally deferred to Phase 7 (tag/organizer similarity).
+
+**Phase 4 (branch: nova-event-creation):**
+- New `/new-event` route (the nav already linked to it; it 404'd before). Nova create form (`NovaCreateEventPage`) replaces the MUI `CreateNewEventDialog`; publishes kind 31923 via `useCreateEvent` (NDK-native signing, prompts `nlLaunch` when logged out).
+- **Timezone save bug fixed:** times are read from `datetime-local` (zone-less wall-clock) and saved with `dayjs.tz(wallClock, timezone).unix()`. Verified across machine zones (Rome/NY users both produce correct Tokyo timestamps).
+- **Timezone auto-detected** from the picked location's coordinates via `tz-lookup` (browser-safe; chosen over the Node-only `geo-tz` named in the original plan), user-overridable through the timezone `<select>`.
+- Form fields: cover upload (`CoverImageInput` → `useBlossomUpload`), title, short summary (`summary` tag), description (`content`), location (`LocationSearchInput`), start/end, timezone, hashtags + links (`TagInput`). Calendar-reference picker intentionally omitted for now.
+- **Geocode cache (`geocodeCache.ts`):** Nominatim + Dexie (direct), 30-day TTL, keyed by normalised location string. The replacement for the hardcoded DACH dict; pre-warmed on each location pick, consumed by Phase 5's radius filter. Legacy dict + `EventFilters` removed in Phase 6.
 
 **Design system:** two variants in `WORKING/NEW_UI/`:
 - **Aetheric Lumina** — light, purple primary `#7c2db1`, surface `#fbf8ff`. Ref screens: `events_list_mobile_light`, `event_details_mobile_light`, `events_map_desktop_light`
