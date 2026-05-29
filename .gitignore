@@ -37,3 +37,4 @@ yarn-error.log*
 
 # my workflow
 /WORKING/*
+.claude/

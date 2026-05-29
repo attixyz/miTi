@@ -50,12 +50,15 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
     initialized.current = true;
 
     const init = async () => {
+      const { default: NDKCacheDexie } = await import("@nostr-dev-kit/ndk-cache-dexie");
+      const cacheAdapter = new NDKCacheDexie({ dbName: "meetstr-ndk" }) as any;
+
       if (typeof window !== "undefined" && window.nostr) {
         const { NDKNip07Signer: Signer } = await import("@nostr-dev-kit/ndk");
         const signer: NDKNip07Signer = new Signer();
-        initNdkRef.current({ explicitRelayUrls: RELAY_URLS, signer });
+        initNdkRef.current({ explicitRelayUrls: RELAY_URLS, signer, cacheAdapter });
       } else {
-        initNdkRef.current({ explicitRelayUrls: RELAY_URLS });
+        initNdkRef.current({ explicitRelayUrls: RELAY_URLS, cacheAdapter });
       }
     };
 
@@ -66,7 +69,7 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
           theme: "default",
           darkMode: false,
           perms: "sign_event:1,nip04_encrypt,nip04_decrypt",
-          noBanner: false,
+          noBanner: true,
           methods: ["connect", "extension", "readOnly", "local"],
           onAuth: async () => {
             setTimeout(init, 200);

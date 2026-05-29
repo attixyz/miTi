@@ -18,7 +18,7 @@ Production runs on port 4000 via PM2 (`ecosystem.config.cjs`).
 
 - **Framework**: Next.js 15 (App Router), React 19, TypeScript 5
 - **UI**: Tailwind CSS v4 + shadcn/ui + Geist font (MUI still present, being removed in Phase 6)
-- **Nostr**: `@nostr-dev-kit/ndk` v2, nostr-hooks, nostr-tools, nostr-login
+- **Nostr**: `@nostr-dev-kit/ndk` v2 + `ndk-cache-dexie` (IndexedDB cache), nostr-hooks, nostr-tools, nostr-login
 - **Data fetching**: TanStack React Query v5
 - **Date/time**: dayjs with utc + timezone plugins
 - **Location search**: leaflet-geosearch (OpenStreetMapProvider → Nominatim)
@@ -45,7 +45,7 @@ src/
     common/
       blossoms/                     # image upload (Blossom protocol)
       calendar/                     # calendar cards, popular calendars
-      events/                       # event cards, filters, RSVP, comments, attendees
+      events/                       # event cards, filters, RSVP, comments, attendees (legacy MUI)
       fab/                          # floating action buttons
       form/                         # geo search, date picker, tag input, etc.
       layout/                       # app bar, navigation rail, logo
@@ -74,6 +74,12 @@ src/
         BottomNav.tsx               # floating pill nav (mobile only)
         ThemeToggle.tsx             # light/dark toggle, persists to localStorage
         LoginButton.tsx             # triggers nostr-login modal
+      events/
+        useNovaEvents.ts            # fetch + filter hook (day, tags); uses NDK directly
+        NovaEventsPage.tsx          # events list page composition
+        NovaEventCard.tsx           # uniform card: aspect-video image + content
+        DaySwitcher.tsx             # horizontal scrollable day picker
+        TagFilterChips.tsx          # horizontal scrollable tag filter
   providers/
     ClientProviders.tsx             # NDK init, nostr-login, React Query, i18n (no MUI)
   services/
@@ -91,7 +97,7 @@ src/
       locationUtils.ts              # Nominatim calls, Haversine, hardcoded city dict
       osmTags.ts                    # Overpass API for OSM tags (Bitcoin payment info)
     nostr/
-      eventCacheUtils.ts            # in-memory Map cache for event arrays
+      eventCacheUtils.ts            # in-memory Map cache (legacy — used by PopularCalendars; delete in Phase 6)
       eventUtils.ts                 # getEventMetadata(), republishEvent(), deleteEvent()
       nipValidator.ts               # NIP-01, NIP-52, NIP-26, NIP-19 validators
       nostrUtils.ts                 # fetchEventById(), fetchCalendarEvents()
@@ -146,10 +152,10 @@ src/
 
 ### Main events feed flow
 
-1. `ClientProviders.tsx` initialises NDK + nostr-login on the client
-2. `UpcomingEventsSection` calls `ndk.fetchEvents({ kinds:[31922,31923], since:now, until:+6mo, limit:1000 })` — **two fetches**: one for +6 months, one for last 7 days
-3. Results land in React state and an in-memory `eventCache` Map (45-min TTL)
-4. `useMemo` filters client-side by: start date, end date, location (text or GPS radius), tags, search query
+1. `ClientProviders.tsx` initialises NDK (with `ndk-cache-dexie` adapter) + nostr-login on the client
+2. `useNovaEvents` calls `ndk.fetchEvents({ kinds:[31922,31923], since:now-30d, limit:1000 })`; on repeat visits NDK returns cached events from IndexedDB instantly before hitting the relay
+3. `useMemo` filters client-side by: selected day, active tag chips
+4. `NovaEventsPage` renders `DaySwitcher` + `TagFilterChips` + a 3-column `NovaEventCard` grid
 
 ### One server-side exception
 
@@ -187,8 +193,7 @@ src/
 
 ### Event detail page slowness
 - Clicking an event fetches it fresh from the relay every time
-- The event is already in the `eventCache` Map from the list fetch but the detail page ignores it
-- Fix: look up by ID in `eventCache` before hitting the relay, or add `ndk-cache-dexie`
+- `ndk-cache-dexie` is now wired (Phase 2), so NDK will serve the event from IndexedDB on repeat visits; first-visit cold load is still slow
 
 ### Blossom server
 - Image upload server hardcoded to `blossom.nostr.build`
@@ -204,19 +209,18 @@ Events don't load when clicking "open in a new tab" (background tab).
 - Haversine distance formula on 2000 events: < 1ms, not a concern
 - The expensive part of distance filtering is geocoding location strings (Nominatim, rate-limited at ~1 req/sec)
 - Recommended: cache geocoded coordinates in IndexedDB (Dexie), keyed by normalised location string, TTL ~30 days
-- Recommended: add `@nostr-dev-kit/ndk-cache-dexie` as NDK cache adapter — makes event fetches instant after first load, persists across page refreshes, and makes the `eventCacheUtils.ts` manual cache redundant
+- `@nostr-dev-kit/ndk-cache-dexie` is now wired as the NDK cache adapter — event fetches are instant after first load, persisting across page refreshes
 
 ## Caching
 
 | Layer | What | TTL | Survives refresh |
 |---|---|---|---|
-| `eventCache` Map (`eventCacheUtils.ts`) | Event arrays | 45 min | No |
+| `ndk-cache-dexie` (IndexedDB) | All NDK events + profiles | Persistent | **Yes** |
+| `eventCache` Map (`eventCacheUtils.ts`) | Event arrays (legacy, PopularCalendars only) | 45 min | No |
 | TanStack Query | Per-query cache | 5 min stale / 30 min gc | No |
 | `useLocationInfo` query | Nominatim results | 1 hour | No |
 | `nominatimCache` object (`locationUtils.ts`) | Raw Nominatim JSON | Forever (module lifetime) | No |
 | DataLoader (`loader.ts`) | Location lookups | Per-request | No |
-
-Nothing persists across page refreshes. All caches are in-memory only.
 
 ## i18n
 
@@ -226,50 +230,25 @@ Italian users get German fallback in dayjs locale (`dayjsConfig.ts:33`).
 
 ## Future Improvements
 
-### Remove `fetchEventsQuick` and use `fetchEvents` only
+### Nova UI — Phase 2 complete (branch: nova-events-list)
 
-**Files involved:**
-- `src/components/common/events/UpcomingEventsSection.tsx` — defines and calls `fetchEventsQuick`
-- `src/utils/nostr/eventCacheUtils.ts` — defines `fetchEvents` (the one to keep)
+The nova UI rebuild is in progress. Phases 1 and 2 are done.
 
-**Background:**
-
-There are two functions that fetch Nostr calendar events from the relay:
-
-1. `fetchEvents(ndk)` in `eventCacheUtils.ts` — the primary, shared fetch. Takes `ndk` as a parameter, runs 3 filters in parallel (`Promise.all`), deduplicates results, caches under `CACHE_KEYS.ALL_EVENTS`, and returns `{ allEvents, upcomingEvents, pastEvents }`. Used across the app via the shared module-level `eventCache` Map.
-
-2. `fetchEventsQuick()` in `UpcomingEventsSection.tsx` — a local, component-scoped fetch. Closes over `ndk` from `useNdk()`. Runs 2 filters sequentially (shows first batch immediately, then merges second batch) to optimise perceived load time. Caches under local `INSTANT_CACHE_KEY` / `BACKGROUND_CACHE_KEY` keys.
-
-**Why `fetchEventsQuick` is redundant:**
-
-- Both functions use the same `ndk` instance. There is no scenario where one can fetch events and the other cannot.
-- `fetchEventsQuick` has 2 filters; `fetchEvents` has the same 2 plus a third (`since: now - 30 days, until: now`) for past events. `fetchEvents` is strictly a superset.
-- The early-display optimisation in `fetchEventsQuick` (show first 50 events immediately, merge rest later) is based on filter 1 returning results fast. But filter 1 (`since: now, until: +6mo`) targets `created_at`, not the NIP-52 `start` tag, so it always returns nothing. The optimisation never fires; execution always falls through to the background merge. In practice `fetchEventsQuick` behaves as a slower, sequential version of `fetchEvents`.
-- `fetchEventsQuick` is only called as a fallback (lines 305, 310 of `UpcomingEventsSection.tsx`) when `fetchEvents` returns zero results or throws. Since both functions use the same filters against the same relay, if `fetchEvents` returns nothing, `fetchEventsQuick` will also return nothing. The fallback provides no safety net.
-- `fetchEventsQuick` was the original implementation. `fetchEvents` was added later to share the fetch and cache across multiple components. `fetchEventsQuick` was never deleted after that refactor.
-
-**How to remove it:**
-
-1. Delete the `fetchEventsQuick` function (lines ~145–280 of `UpcomingEventsSection.tsx`).
-2. Delete the local cache constants and helpers that exist only for `fetchEventsQuick`: `INSTANT_CACHE_KEY`, `BACKGROUND_CACHE_KEY`, and the local `eventCache` Map / `getCachedEvents` / `cacheEvents` at the top of the file (lines ~34–53). The shared versions from `eventCacheUtils.ts` remain.
-3. Simplify the first `useEffect` (deps: `[]`, lines ~89–142): keep only the shared cache check (`getSharedCachedEvents(CACHE_KEYS.INSTANT_EVENTS)`) and the URL filter initialisation. Remove the `fetchEvents(ndk)` call inside it — it is redundant with the second `useEffect`.
-4. Simplify the second `useEffect` (deps: `[ndk, isClient]`, lines ~283–313): replace the entire body with a direct call to `fetchEvents(ndk)` and remove the `.catch(() => fetchEventsQuick())` fallback.
-
-**NDK availability:** `ndk` from `useNdk()` is `null` on first render and becomes non-null once `ClientProviders.tsx` finishes async initialisation. The `[ndk, isClient]` dependency array on the second `useEffect` already handles this correctly — the effect re-fires when `ndk` transitions from `null` to an instance, so no extra guard is needed beyond `if (ndk && isClient)`.
-
-### Nova UI — Phase 1 complete (branch: nova-foundation)
-
-The nova UI rebuild is in progress. Phase 1 is done:
+**Phase 1 (branch: nova-foundation):**
 - `ClientProviders` stripped to base layer (NDK, React Query, i18n, nostr-login — no MUI)
-- `DefaultFloatingActionButton` removed from root layout
-- Tailwind 4 + Geist + shadcn/ui installed; dual-theme CSS custom properties in `globals.css` via `@theme inline` (Tailwind 4 uses CSS-first config, no `tailwind.config.js`)
-- Cross-theme token inconsistencies resolved: unified 8px spacing base, canonical radius scale
-- Nova app shell built: `NovaShell`, `TopBar`, `BottomNav`, `ThemeToggle`, `LoginButton`
-- `@nostr-dev-kit/ndk` declared as direct dependency at v2.x (removed spurious `ndk@^1.0.0`)
+- Tailwind 4 + Geist + shadcn/ui installed; dual-theme CSS custom properties in `globals.css`
+- Nova app shell: `NovaShell`, `TopBar`, `BottomNav`, `ThemeToggle`, `LoginButton`
 - shadcn dark variant wired to `data-theme="dark"` (not `.dark` class)
+
+**Phase 2 (branch: nova-events-list):**
+- `ndk-cache-dexie` wired as NDK cache adapter — IndexedDB persistence across refreshes
+- `UpcomingEventsSection` and `fetchEventsQuick` removed; replaced by `useNovaEvents` hook
+- Nova events list page: `DaySwitcher`, `TagFilterChips`, `NovaEventCard`, 3-column grid
+- Nominatim `accept-language: "en"` fix applied (untested pending event creation UI)
+- `nostr-login` banner disabled (`noBanner: true`) — modal only on explicit user action
 
 **Design system:** two variants in `WORKING/NEW_UI/`:
 - **Aetheric Lumina** — light, purple primary `#7c2db1`, surface `#fbf8ff`. Ref screens: `events_list_mobile_light`, `event_details_mobile_light`, `events_map_desktop_light`
 - **Aetheric Technical** — dark, primary `#e9b3ff`, background `#151217`. Ref screens: `event_details_updated_nav`, `event_details_wide_map`
 
-**Remaining legacy work** (Phase 6): delete legacy page files and MUI packages once nova pages cover all views.
+**Remaining legacy work** (Phase 6): delete legacy MUI components and `eventCacheUtils.ts` once nova covers all views.

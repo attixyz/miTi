@@ -45,7 +45,7 @@ export const FormGeoSearchField = ({
   // Initialize the OpenStreetMapProvider
   const provider = useMemo(() => {
     if (typeof window !== "undefined") {
-      return new OpenStreetMapProvider();
+      return new OpenStreetMapProvider({ params: { "accept-language": "en" } });
     }
     return null;
   }, []);
