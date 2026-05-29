@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Wire shadcn's dark: variant to our data-theme attribute */
+@custom-variant dark (&:is([data-theme="dark"] *));
 
 /* ─── Nostr Login banner z-index ─────────────────────────────────────────── */
 .nl-banner { z-index: 1000 !important; }
@@ -7,6 +12,7 @@
 
 /* ─── Aetheric Lumina — light theme ─────────────────────────────────────── */
 [data-theme="light"] {
+  /* Design tokens */
   --background:              #fbf8ff;
   --surface:                 #fbf8ff;
   --surface-container-low:   #f5f2f9;
@@ -31,18 +37,18 @@
   --on-error:                #ffffff;
   --error-container:         #ffdad6;
 
-  /* spacing — 8px base (Lumina spec) */
-  --spacing-xs:   4px;
-  --spacing-sm:   8px;
-  --spacing-md:   16px;
-  --spacing-lg:   24px;
-  --spacing-xl:   48px;
-  --spacing-2xl:  80px;
-  --margin-mobile:  16px;
-  --margin-desktop: 64px;
-  --gutter:         24px;
+  /* Spacing — 8px base */
+  --spacing-xs:       4px;
+  --spacing-sm:       8px;
+  --spacing-md:       16px;
+  --spacing-lg:       24px;
+  --spacing-xl:       48px;
+  --spacing-2xl:      80px;
+  --margin-mobile:    16px;
+  --margin-desktop:   64px;
+  --gutter:           24px;
 
-  /* radius */
+  /* Radius */
   --radius-sm:   0.5rem;
   --radius-md:   1rem;
   --radius-lg:   1.5rem;
@@ -50,13 +56,32 @@
   --radius-2xl:  3rem;
   --radius-full: 9999px;
 
-  /* elevation */
-  --shadow-card: 0 4px 12px 0 rgb(124 45 177 / 0.06);
+  /* Elevation */
+  --shadow-card:    0 4px 12px 0 rgb(124 45 177 / 0.06);
   --shadow-overlay: 0 8px 24px 0 rgb(124 45 177 / 0.10);
+
+  /* shadcn compatibility — mapped to our tokens */
+  --foreground:           #1b1b20;
+  --card:                 #ffffff;
+  --card-foreground:      #1b1b20;
+  --popover:              #efedf4;
+  --popover-foreground:   #1b1b20;
+  --primary-foreground:   #ffffff;
+  --secondary-foreground: #1b1b20;
+  --muted:                #efedf4;
+  --muted-foreground:     #4d4352;
+  --accent:               #f3daff;
+  --accent-foreground:    #2f004c;
+  --destructive:          #ba1a1a;
+  --border:               #d0c2d4;
+  --input:                #f5f2f9;
+  --ring:                 #7c2db1;
+  --radius:               1rem;
 }
 
 /* ─── Aetheric Technical — dark theme ───────────────────────────────────── */
 [data-theme="dark"] {
+  /* Design tokens */
   --background:              #151217;
   --surface:                 #1e1a20;
   --surface-container-low:   #221e24;
@@ -81,18 +106,18 @@
   --on-error:                #690005;
   --error-container:         #93000a;
 
-  /* spacing — standardized to 8px base (same as Lumina for consistency) */
-  --spacing-xs:   4px;
-  --spacing-sm:   8px;
-  --spacing-md:   16px;
-  --spacing-lg:   24px;
-  --spacing-xl:   48px;
-  --spacing-2xl:  64px;
-  --margin-mobile:  16px;
-  --margin-desktop: 48px;
-  --gutter:         24px;
+  /* Spacing — standardized to 8px base */
+  --spacing-xs:       4px;
+  --spacing-sm:       8px;
+  --spacing-md:       16px;
+  --spacing-lg:       24px;
+  --spacing-xl:       48px;
+  --spacing-2xl:      64px;
+  --margin-mobile:    16px;
+  --margin-desktop:   48px;
+  --gutter:           24px;
 
-  /* radius — same canonical scale as light theme */
+  /* Radius — same canonical scale */
   --radius-sm:   0.5rem;
   --radius-md:   1rem;
   --radius-lg:   1.5rem;
@@ -100,13 +125,33 @@
   --radius-2xl:  3rem;
   --radius-full: 9999px;
 
-  /* elevation — purple-tinted glow */
-  --shadow-card: 0 4px 24px 0 rgb(99 37 129 / 0.40);
+  /* Elevation — purple-tinted glow */
+  --shadow-card:    0 4px 24px 0 rgb(99 37 129 / 0.40);
   --shadow-overlay: 0 8px 32px 0 rgb(99 37 129 / 0.50);
+
+  /* shadcn compatibility — mapped to our tokens */
+  --foreground:           #e8e0e8;
+  --card:                 #221e24;
+  --card-foreground:      #e8e0e8;
+  --popover:              #2c292e;
+  --popover-foreground:   #e8e0e8;
+  --primary-foreground:   #4e0b6d;
+  --secondary-foreground: #e8e0e8;
+  --muted:                #2c292e;
+  --muted-foreground:     #d0c2d1;
+  --accent:               #632581;
+  --accent-foreground:    #f7d8ff;
+  --destructive:          #ffb4ab;
+  --border:               #4d4450;
+  --input:                #221e24;
+  --ring:                 #e9b3ff;
+  --radius:               1rem;
 }
 
 /* ─── Tailwind theme mapping ─────────────────────────────────────────────── */
 @theme inline {
+  --font-sans: var(--font-sans);
+
   --color-background:             var(--background);
   --color-surface:                var(--surface);
   --color-surface-low:            var(--surface-container-low);
@@ -128,12 +173,20 @@
   --color-on-error:               var(--on-error);
   --color-error-container:        var(--error-container);
 
-  --spacing-xs:   var(--spacing-xs);
-  --spacing-sm:   var(--spacing-sm);
-  --spacing-md:   var(--spacing-md);
-  --spacing-lg:   var(--spacing-lg);
-  --spacing-xl:   var(--spacing-xl);
-  --spacing-2xl:  var(--spacing-2xl);
+  /* shadcn semantic colors */
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted:              var(--muted);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-accent:             var(--accent);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-destructive:        var(--destructive);
+  --color-border:             var(--border);
+  --color-input:              var(--input);
+  --color-ring:               var(--ring);
 
   --radius-sm:   var(--radius-sm);
   --radius-md:   var(--radius-md);
@@ -141,14 +194,14 @@
   --radius-xl:   var(--radius-xl);
   --radius-2xl:  var(--radius-2xl);
   --radius-full: var(--radius-full);
-
-  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
 }
 
-/* ─── Base reset scoped to nova pages ───────────────────────────────────── */
-[data-theme] {
-  background-color: var(--background);
-  color: var(--on-surface);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
 }

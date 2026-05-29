@@ -2,9 +2,13 @@ import { headers } from "next/headers";
 import ClientProviders from "@/providers/ClientProviders";
 import type { Metadata } from "next";
 import Script from "next/script";
-import { GeistSans } from "geist/font/sans";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+import { NovaShell } from "@/components/nova/layout/NovaShell";
 import "@/utils/app-init";
 import "./globals.css";
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://meetstr.com"),
@@ -65,20 +69,16 @@ export default async function RootLayout({
   return (
     <html
       lang={langHeader}
-      className={GeistSans.variable}
+      className={cn(geist.variable)}
       data-theme="dark"
       suppressHydrationWarning
     >
       <head>
-        <Script
-          defer
-          data-domain="meetstr.com"
-          src="https://plausible.io/js/script.js"
-        />
+        <Script defer data-domain="meetstr.com" src="https://plausible.io/js/script.js" />
       </head>
       <body suppressHydrationWarning>
         <ClientProviders serverLang={langHeader}>
-          {children}
+          <NovaShell>{children}</NovaShell>
         </ClientProviders>
       </body>
     </html>
