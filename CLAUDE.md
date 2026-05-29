@@ -80,6 +80,17 @@ src/
         NovaEventCard.tsx           # uniform card: aspect-video image + content
         DaySwitcher.tsx             # horizontal scrollable day picker
         TagFilterChips.tsx          # horizontal scrollable tag filter
+      event/                        # event detail (Phase 3)
+        useNovaEvent.ts             # fetch single event by naddr/id, cache-first subscription
+        useNovaRsvp.ts              # NIP-52 RSVP (kind 31925) publish/retract — NDK-native
+        eventSchedule.ts            # tzid-aware date/time formatting for display
+        calendarLinks.ts            # Google Calendar URL + .ics builder (client-side)
+        NovaEventDetail.tsx         # detail page composition (skeleton-first, progressive)
+        NovaEventActions.tsx        # hero like (local toggle, no publish) + flag menu (UI only)
+        NovaEventHost.tsx           # organizer avatar + name via useProfile
+        NovaEventMap.tsx            # progressive OSM embed + Overpass payment badges + map links
+        NovaEventRsvp.tsx           # RSVP segmented control (Going / Maybe / Can't go)
+        NovaAddToCalendar.tsx       # Google + .ics download buttons
   providers/
     ClientProviders.tsx             # NDK init, nostr-login, React Query, i18n (no MUI)
   services/
@@ -121,14 +132,14 @@ src/
 | `d` | yes | unique identifier |
 | `title` | yes | event name |
 | `content` | yes (can be empty) | **canonical full description** |
-| `summary` | no | brief description (secondary) |
+| `summary` | no | short description (secondary) |
 | `start` | yes | Unix timestamp (31923) or ISO date (31922) |
 | `end` | no | Unix timestamp or ISO date |
 | `start_tzid` | no | IANA timezone identifier |
 | `end_tzid` | no | IANA timezone identifier |
 | `location` | no | human-readable string |
 | `g` | no | geohash (6–7 chars recommended for venue precision) |
-| `image` | no | URL (use `image`, not `cover`) |
+| `image` | no | URL; canonical tag. `getEventMetadata` falls back to a legacy `cover` tag when `image` is absent |
 | `t` | no | hashtag, repeatable |
 | `r` | no | reference URL, repeatable |
 | `p` | no | participant pubkey, repeatable |
@@ -176,24 +187,12 @@ src/
 - `FormGeoSearchField` uses `leaflet-geosearch` with no `accept-language` param
 - Nominatim returns names in browser language: Italian users get "Londra", "San Paolo"
 - Saved location strings are inconsistent across users → text matching breaks
-- Fix: `new OpenStreetMapProvider({ params: { "accept-language": "en" } })`
+
+A quickfix forced to use English, but I prefer local language.
 
 ### Timezone handling
-- Date picker creates dayjs objects in browser's local timezone, ignoring the selected `start_tzid`
-- If a Rome-based user creates a Tokyo event and picks "09:00", the saved Unix timestamp is 09:00 Rome time, not 09:00 Tokyo time
-- `start_tzid` is read from events but **never used for display** — times always shown in viewer's local timezone
-- Fix (saving): `dayjs.tz(pickedDateTime, selectedTimezone).unix()`
-- Fix (display): pass `start_tzid` to `EventTimeDisplay` and format with `date.toLocaleString(locale, { timeZone: start_tzid })`
-
-### Content field
-- NIP-52 specifies `content` as the canonical description field
-- `eventUtils.ts` reads only `summary` tag, never `event.content`
-- Events from other NIP-52 clients that use only `content` show no description
-- Fix: `summary: getTagValue("summary") || getTagValue("description") || event.content`
-
-### Event detail page slowness
-- Clicking an event fetches it fresh from the relay every time
-- `ndk-cache-dexie` is now wired (Phase 2), so NDK will serve the event from IndexedDB on repeat visits; first-visit cold load is still slow
+- **Display half — FIXED in Phase 3.** The nova detail page formats via `eventSchedule.ts`, which passes `start_tzid`/`end_tzid` into `Intl.DateTimeFormat` with `timeZone` + `timeZoneName:"short"` (e.g. "9:00 AM – 5:00 PM EST"). Invalid IANA ids fall back to the viewer's local zone. The legacy `EventTimeDisplay` (MUI) still ignores tzid but is no longer on the detail route.
+- **Save half — still broken (Phase 4).** Date picker creates dayjs objects in the browser's local timezone, ignoring the selected `start_tzid`: a Rome user picking "09:00" for a Tokyo event saves 09:00 Rome time. Fix (saving): `dayjs.tz(pickedDateTime, selectedTimezone).unix()`.
 
 ### Blossom server
 - Image upload server hardcoded to `blossom.nostr.build`
@@ -209,7 +208,6 @@ Events don't load when clicking "open in a new tab" (background tab).
 - Haversine distance formula on 2000 events: < 1ms, not a concern
 - The expensive part of distance filtering is geocoding location strings (Nominatim, rate-limited at ~1 req/sec)
 - Recommended: cache geocoded coordinates in IndexedDB (Dexie), keyed by normalised location string, TTL ~30 days
-- `@nostr-dev-kit/ndk-cache-dexie` is now wired as the NDK cache adapter — event fetches are instant after first load, persisting across page refreshes
 
 ## Caching
 
@@ -230,9 +228,9 @@ Italian users get German fallback in dayjs locale (`dayjsConfig.ts:33`).
 
 ## Future Improvements
 
-### Nova UI — Phase 2 complete (branch: nova-events-list)
+### Nova UI — Phase 3 complete (branch: nova-event-detail)
 
-The nova UI rebuild is in progress. Phases 1 and 2 are done.
+The nova UI rebuild is in progress. Phases 1, 2 and 3 are done.
 
 **Phase 1 (branch: nova-foundation):**
 - `ClientProviders` stripped to base layer (NDK, React Query, i18n, nostr-login — no MUI)
@@ -246,6 +244,15 @@ The nova UI rebuild is in progress. Phases 1 and 2 are done.
 - Nova events list page: `DaySwitcher`, `TagFilterChips`, `NovaEventCard`, 3-column grid
 - Nominatim `accept-language: "en"` fix applied (untested pending event creation UI)
 - `nostr-login` banner disabled (`noBanner: true`) — modal only on explicit user action
+
+**Phase 3 (branch: nova-event-detail):**
+- `getEventMetadata` now exposes NIP-52 text fields separately — `shortDescription` (`summary` tag), `description` (`description` tag), `content` (`event.content`) — without changing the legacy combined `summary` field that ~15 calendar/OG/ICS/search consumers still read. Detail page shows short_description = `summary`, main_text = `content || description`.
+- `image` falls back to a legacy `cover` tag.
+- New event detail route: MUI `EventOverview` replaced by `NovaEventDetail` (`EventPageClient` uses `use(params)` + nova). Skeleton-first SSR shell; `useNovaEvent` subscribes cache-first so cached text paints instantly while cover image, map (Nominatim) and Overpass payment badges fill in progressively.
+- RSVP is functional and nova-native (`useNovaRsvp`): publishes kind 31925, retracts the prior RSVP via a kind-5 deletion, prompts `nlLaunch` login when logged out. No SnackbarContext/i18next dependency (not in the stripped providers).
+- Like button: local visual toggle only, **publishes nothing** (deferred). Flag menu (spam/block/hide): UI only, handlers are placeholders pending moderation logic.
+- Timezone *display* fixed via `eventSchedule.ts` (see Timezone handling above). Save-side fix remains Phase 4.
+- "Related Events" (in the design) intentionally deferred to Phase 7 (tag/organizer similarity).
 
 **Design system:** two variants in `WORKING/NEW_UI/`:
 - **Aetheric Lumina** — light, purple primary `#7c2db1`, surface `#fbf8ff`. Ref screens: `events_list_mobile_light`, `event_details_mobile_light`, `events_map_desktop_light`

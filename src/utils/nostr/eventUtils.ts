@@ -33,8 +33,18 @@ export const getEventMetadata = (event: NDKEvent) => {
     end: getTagValue("end"),
     start_tzid: getTagValue("start_tzid"),
     end_tzid: getTagValue("end_tzid"),
+    // Legacy combined field — kept for backward compatibility (calendars, OG,
+    // ICS, search all read `summary`). Do not change its fallback behaviour.
     summary: getTagValue("summary") || getTagValue("description"),
-    image: getTagValue("image"),
+    // NIP-52 fields kept separate for correct display:
+    // short_description → the `summary` tag only (secondary, short blurb)
+    shortDescription: getTagValue("summary"),
+    // the `description` tag — fallback source for the main body text
+    description: getTagValue("description"),
+    // canonical full description per NIP-52 → `event.content`
+    content: event.content || "",
+    // Prefer the NIP-52 `image` tag; fall back to a legacy `cover` tag.
+    image: getTagValue("image") || getTagValue("cover"),
     location: getTagValue("location"),
     geohash: getTagValue("g"),
     participants: getTagValues("p"),
