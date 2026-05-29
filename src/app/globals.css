@@ -10,9 +10,60 @@
 .nl-banner > div { z-index: 1001 !important; }
 .nl-banner .nl-action-button { z-index: 1002 !important; }
 
+/* ─── Typography tokens (unified — identical across both themes) ─────────── */
+:root {
+  /* Display / Headlines */
+  --text-display-size:              48px;
+  --text-display-weight:            700;
+  --text-display-line-height:       56px;
+  --text-display-tracking:          -0.02em;
+
+  --text-headline-lg-size:          32px;
+  --text-headline-lg-weight:        600;
+  --text-headline-lg-line-height:   40px;
+  --text-headline-lg-tracking:      -0.01em;
+
+  --text-headline-lg-mobile-size:        24px;
+  --text-headline-lg-mobile-weight:      600;
+  --text-headline-lg-mobile-line-height: 32px;
+
+  --text-headline-md-size:          24px;
+  --text-headline-md-weight:        500;
+  --text-headline-md-line-height:   32px;
+
+  /* Body */
+  --text-body-lg-size:              18px;
+  --text-body-lg-weight:            400;
+  --text-body-lg-line-height:       28px;
+
+  --text-body-md-size:              16px;
+  --text-body-md-weight:            400;
+  --text-body-md-line-height:       24px;
+
+  --text-body-sm-size:              14px;
+  --text-body-sm-weight:            400;
+  --text-body-sm-line-height:       20px;
+
+  /* Labels */
+  --text-label-md-size:             14px;
+  --text-label-md-weight:           500;
+  --text-label-md-line-height:      20px;
+  --text-label-md-tracking:         0.02em;
+
+  --text-label-sm-size:             12px;
+  --text-label-sm-weight:           600;
+  --text-label-sm-line-height:      16px;
+  --text-label-sm-tracking:         0.04em;
+
+  /* Mono / Code */
+  --text-mono-size:                 14px;
+  --text-mono-weight:               400;
+  --text-mono-line-height:          20px;
+}
+
 /* ─── Aetheric Lumina — light theme ─────────────────────────────────────── */
 [data-theme="light"] {
-  /* Design tokens */
+  /* Color tokens */
   --background:              #fbf8ff;
   --surface:                 #fbf8ff;
   --surface-container-low:   #f5f2f9;
@@ -37,30 +88,11 @@
   --on-error:                #ffffff;
   --error-container:         #ffdad6;
 
-  /* Spacing — 8px base */
-  --spacing-xs:       4px;
-  --spacing-sm:       8px;
-  --spacing-md:       16px;
-  --spacing-lg:       24px;
-  --spacing-xl:       48px;
-  --spacing-2xl:      80px;
-  --margin-mobile:    16px;
-  --margin-desktop:   64px;
-  --gutter:           24px;
-
-  /* Radius */
-  --radius-sm:   0.5rem;
-  --radius-md:   1rem;
-  --radius-lg:   1.5rem;
-  --radius-xl:   2rem;
-  --radius-2xl:  3rem;
-  --radius-full: 9999px;
-
   /* Elevation */
   --shadow-card:    0 4px 12px 0 rgb(124 45 177 / 0.06);
   --shadow-overlay: 0 8px 24px 0 rgb(124 45 177 / 0.10);
 
-  /* shadcn compatibility — mapped to our tokens */
+  /* shadcn compatibility */
   --foreground:           #1b1b20;
   --card:                 #ffffff;
   --card-foreground:      #1b1b20;
@@ -81,7 +113,7 @@
 
 /* ─── Aetheric Technical — dark theme ───────────────────────────────────── */
 [data-theme="dark"] {
-  /* Design tokens */
+  /* Color tokens */
   --background:              #151217;
   --surface:                 #1e1a20;
   --surface-container-low:   #221e24;
@@ -106,30 +138,15 @@
   --on-error:                #690005;
   --error-container:         #93000a;
 
-  /* Spacing — standardized to 8px base */
-  --spacing-xs:       4px;
-  --spacing-sm:       8px;
-  --spacing-md:       16px;
-  --spacing-lg:       24px;
-  --spacing-xl:       48px;
-  --spacing-2xl:      64px;
-  --margin-mobile:    16px;
-  --margin-desktop:   48px;
-  --gutter:           24px;
-
-  /* Radius — same canonical scale */
-  --radius-sm:   0.5rem;
-  --radius-md:   1rem;
-  --radius-lg:   1.5rem;
-  --radius-xl:   2rem;
-  --radius-2xl:  3rem;
-  --radius-full: 9999px;
-
   /* Elevation — purple-tinted glow */
   --shadow-card:    0 4px 24px 0 rgb(99 37 129 / 0.40);
   --shadow-overlay: 0 8px 32px 0 rgb(99 37 129 / 0.50);
 
-  /* shadcn compatibility — mapped to our tokens */
+  /* Label tracking is more aggressive in the Technical (dark) spec */
+  --text-label-md-tracking: 0.05em;
+  --text-label-sm-tracking: 0.06em;
+
+  /* shadcn compatibility */
   --foreground:           #e8e0e8;
   --card:                 #221e24;
   --card-foreground:      #e8e0e8;
@@ -148,10 +165,34 @@
   --radius:               1rem;
 }
 
+/* ─── Spacing tokens (unified — identical across both themes) ────────────── */
+/* Standardized to 8px grid. Differences between the two specs were
+   artefacts of independent LLM generation, not intentional design choices. */
+[data-theme] {
+  --spacing-xs:       4px;
+  --spacing-sm:       8px;
+  --spacing-md:       16px;
+  --spacing-lg:       24px;
+  --spacing-xl:       48px;
+  --spacing-2xl:      80px;
+  --margin-mobile:    16px;
+  --margin-desktop:   64px;
+  --gutter:           24px;
+
+  /* Radius — canonical scale, identical in both specs */
+  --radius-sm:   0.5rem;
+  --radius-md:   1rem;
+  --radius-lg:   1.5rem;
+  --radius-xl:   2rem;
+  --radius-2xl:  3rem;
+  --radius-full: 9999px;
+}
+
 /* ─── Tailwind theme mapping ─────────────────────────────────────────────── */
 @theme inline {
   --font-sans: var(--font-sans);
 
+  /* Colors */
   --color-background:             var(--background);
   --color-surface:                var(--surface);
   --color-surface-low:            var(--surface-container-low);
@@ -188,12 +229,73 @@
   --color-input:              var(--input);
   --color-ring:               var(--ring);
 
+  /* Radius */
   --radius-sm:   var(--radius-sm);
   --radius-md:   var(--radius-md);
   --radius-lg:   var(--radius-lg);
   --radius-xl:   var(--radius-xl);
   --radius-2xl:  var(--radius-2xl);
   --radius-full: var(--radius-full);
+}
+
+/* ─── Compound typography utilities ─────────────────────────────────────── */
+/* Use these class names in components: className="type-display", etc.      */
+@layer components {
+  .type-display {
+    font-size: var(--text-display-size);
+    font-weight: var(--text-display-weight);
+    line-height: var(--text-display-line-height);
+    letter-spacing: var(--text-display-tracking);
+  }
+  .type-headline-lg {
+    font-size: var(--text-headline-lg-size);
+    font-weight: var(--text-headline-lg-weight);
+    line-height: var(--text-headline-lg-line-height);
+    letter-spacing: var(--text-headline-lg-tracking);
+  }
+  .type-headline-lg-mobile {
+    font-size: var(--text-headline-lg-mobile-size);
+    font-weight: var(--text-headline-lg-mobile-weight);
+    line-height: var(--text-headline-lg-mobile-line-height);
+  }
+  .type-headline-md {
+    font-size: var(--text-headline-md-size);
+    font-weight: var(--text-headline-md-weight);
+    line-height: var(--text-headline-md-line-height);
+  }
+  .type-body-lg {
+    font-size: var(--text-body-lg-size);
+    font-weight: var(--text-body-lg-weight);
+    line-height: var(--text-body-lg-line-height);
+  }
+  .type-body-md {
+    font-size: var(--text-body-md-size);
+    font-weight: var(--text-body-md-weight);
+    line-height: var(--text-body-md-line-height);
+  }
+  .type-body-sm {
+    font-size: var(--text-body-sm-size);
+    font-weight: var(--text-body-sm-weight);
+    line-height: var(--text-body-sm-line-height);
+  }
+  .type-label-md {
+    font-size: var(--text-label-md-size);
+    font-weight: var(--text-label-md-weight);
+    line-height: var(--text-label-md-line-height);
+    letter-spacing: var(--text-label-md-tracking);
+  }
+  .type-label-sm {
+    font-size: var(--text-label-sm-size);
+    font-weight: var(--text-label-sm-weight);
+    line-height: var(--text-label-sm-line-height);
+    letter-spacing: var(--text-label-sm-tracking);
+  }
+  .type-mono {
+    font-size: var(--text-mono-size);
+    font-weight: var(--text-mono-weight);
+    line-height: var(--text-mono-line-height);
+    font-family: ui-monospace, monospace;
+  }
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────── */
