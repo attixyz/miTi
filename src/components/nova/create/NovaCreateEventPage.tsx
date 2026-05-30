@@ -1,11 +1,17 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import tzLookup from "tz-lookup";
 import { CalendarPlus, Globe, Loader2, Sparkles } from "lucide-react";
 import dayjs from "@/utils/formatting/dayjsConfig";
 import { cn } from "@/lib/utils";
+import { getEventMetadata } from "@/utils/nostr/eventUtils";
+import { useNovaEvent } from "@/components/nova/event/useNovaEvent";
+import {
+  NostrEntityPicker,
+  type EntityRef,
+} from "@/components/nova/calendar/NostrEntityPicker";
 import { CoverImageInput } from "./CoverImageInput";
 import { LocationSearchInput, type PickedLocation } from "./LocationSearchInput";
 import { TagInput } from "./TagInput";
@@ -45,6 +51,29 @@ export function NovaCreateEventPage() {
   const [references, setReferences] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Optional `?calendar=<naddr>` pre-seeds the calendar this event is added to.
+  const [calendarParam, setCalendarParam] = useState<string | undefined>();
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("calendar");
+    if (p) setCalendarParam(p);
+  }, []);
+  const { event: calendarEvent } = useNovaEvent(calendarParam);
+  const [calendarRefs, setCalendarRefs] = useState<EntityRef[]>([]);
+  const seededCalendar = useRef(false);
+  useEffect(() => {
+    if (!calendarEvent || seededCalendar.current) return;
+    const d = calendarEvent.tags.find((t) => t[0] === "d")?.[1];
+    if (!d) return;
+    seededCalendar.current = true;
+    setCalendarRefs([
+      {
+        aTag: `31924:${calendarEvent.pubkey}:${d}`,
+        naddr: calendarParam ?? "",
+        title: getEventMetadata(calendarEvent).title || "Calendar",
+      },
+    ]);
+  }, [calendarEvent, calendarParam]);
+
   function handleLocationChange(next: PickedLocation | null) {
     setLocation(next);
     // Item #2 — auto-detect the timezone from the picked coordinates.
@@ -80,6 +109,7 @@ export function NovaCreateEventPage() {
         image,
         hashtags,
         references,
+        calendarRefs: calendarRefs.map((r) => r.aTag),
       });
       router.push(`/event/${naddr}`);
     } catch (err) {
@@ -207,6 +237,15 @@ export function NovaCreateEventPage() {
             placeholder="Add a URL, press Enter"
           />
         </div>
+
+        <NostrEntityPicker
+          label="Add to calendars"
+          allowedKinds={[31924]}
+          value={calendarRefs}
+          onChange={setCalendarRefs}
+          placeholder="Search calendars or paste an naddr…"
+          hint="The event will reference these calendars."
+        />
 
         {error && (
           <p className="type-body-sm text-error" role="alert">

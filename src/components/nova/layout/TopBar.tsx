@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, Map, PlusCircle } from "lucide-react";
+import { List, Map, PlusCircle, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { LoginButton } from "./LoginButton";
 
 const NAV_LINKS = [
-  { href: "/events",    icon: List,       label: "List" },
-  { href: "/map",       icon: Map,        label: "Map" },
-  { href: "/new-event", icon: PlusCircle, label: "Create" },
+  { href: "/events",    icon: List,          label: "List" },
+  { href: "/map",       icon: Map,           label: "Map" },
+  { href: "/calendars", icon: CalendarRange, label: "Calendars" },
+  { href: "/new-event", icon: PlusCircle,    label: "Create" },
 ] as const;
 
 export function TopBar() {

@@ -84,6 +84,6 @@ export async function generateMetadata(
   }
 }
 
-export default function CalendarPage({ params }: Props) {
-  return <CalendarPageClient params={params} />;
+export default function CalendarPage() {
+  return <CalendarPageClient />;
 }

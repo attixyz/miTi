@@ -8,6 +8,9 @@ export function getNdk(): NDK {
     ndkInstance = new NDK({
       explicitRelayUrls: [
         "wss://relay.damus.io",
+        //"wss://relay.nostr.band",
+        //"wss://nos.lol",
+        //"wss://nostr.wine",
       ],
     });
     ndkInstance.connect().catch(console.error);

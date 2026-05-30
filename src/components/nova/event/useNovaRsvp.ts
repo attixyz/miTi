@@ -18,10 +18,8 @@ interface RsvpTarget {
   tags: string[][];
 }
 
-/** NIP-52 RSVP (kind 31925) handling for a single event, nova-native.
- *
- * Unlike the legacy `useRsvpHandler`, this depends only on NDK + nostr-login —
- * no SnackbarContext / i18next — so it works inside the stripped providers. */
+/** NIP-52 RSVP (kind 31925) handling for a single event, nova-native:
+ *  depends only on NDK + nostr-login (no toast/i18n context). */
 export function useNovaRsvp(event: RsvpTarget | null) {
   const { ndk } = useNdk();
   const activeUser = useActiveUser();

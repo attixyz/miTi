@@ -29,7 +29,12 @@ const queryClient = new QueryClient({
   },
 });
 
-const RELAY_URLS = ["wss://relay.damus.io"];
+const RELAY_URLS = [
+  "wss://relay.damus.io",
+  //"wss://relay.nostr.band",
+  //"wss://nos.lol",
+  //"wss://nostr.wine",
+];
 
 function BaseProviderContent({ children }: { children: ReactNode }) {
   const { initNdk, ndk } = useNdk();

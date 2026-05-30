@@ -8,7 +8,6 @@ import {
   type UnsignedEvent,
   type Event,
 } from "nostr-tools";
-import { authService } from "@/services/authService";
 
 export const useBlossomUpload = () => {
   const { ndk } = useNdk();
@@ -18,18 +17,20 @@ export const useBlossomUpload = () => {
     if (!ndk || !activeUser?.pubkey) return null;
 
     try {
-      // 1. Create signer function that uses authService
+      // 1. Create signer function backed by the nostr-login `window.nostr`.
       const signer = async (draft: EventTemplate) => {
+        if (typeof window === "undefined" || !window.nostr) {
+          throw new Error("No nostr signer available");
+        }
         const event: UnsignedEvent = {
           ...draft,
           pubkey: activeUser.pubkey,
           created_at: Math.floor(Date.now() / 1000),
         };
 
-        // Sign with authService (will handle authentication)
-        const signedEvent = await authService.signEvent(event);
+        const signedEvent = await window.nostr.signEvent(event);
 
-        // Return the signed event with proper id calculated from the unsigned event
+        // Return the signed event with the id calculated from the unsigned event
         return {
           ...event,
           sig: signedEvent.sig,

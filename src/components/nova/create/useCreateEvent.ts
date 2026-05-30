@@ -21,6 +21,8 @@ export interface CreateEventInput {
   image: string | null;
   hashtags: string[];
   references: string[];
+  /** Calendar coordinates (`31924:pubkey:d`) to add this event to. */
+  calendarRefs?: string[];
 }
 
 export class LoginRequiredError extends Error {
@@ -100,9 +102,43 @@ export function useCreateEvent() {
         if (input.image) ev.tags.push(["image", input.image]);
         input.hashtags.forEach((t) => ev.tags.push(["t", t]));
         input.references.forEach((r) => ev.tags.push(["r", r]));
+        input.calendarRefs?.forEach((coord) => ev.tags.push(["a", coord]));
 
         await ev.sign();
         await ev.publish();
+
+        // Add this event to any referenced calendars the user owns, so it
+        // shows up immediately rather than waiting for owner approval.
+        if (input.calendarRefs?.length) {
+          const eventCoord = `31923:${ev.pubkey}:${identifier}`;
+          await Promise.all(
+            input.calendarRefs.map(async (coord) => {
+              const [, calPubkey, ...rest] = coord.split(":");
+              if (calPubkey !== activeUser.pubkey) return;
+              try {
+                const cal = await ndk.fetchEvent({
+                  kinds: [31924 as number],
+                  authors: [calPubkey],
+                  "#d": [rest.join(":")],
+                });
+                if (!cal) return;
+                const updated = new NDKEvent(ndk);
+                updated.kind = 31924;
+                updated.content = cal.content || "";
+                updated.tags = [
+                  ...cal.tags.filter(
+                    (t) => !(t[0] === "a" && t[1] === eventCoord)
+                  ),
+                  ["a", eventCoord],
+                ];
+                await updated.sign();
+                await updated.publish();
+              } catch (err) {
+                console.error("Failed to update owned calendar", err);
+              }
+            })
+          );
+        }
 
         // Pre-warm the geocode cache so Phase 5's distance filter gets a hit.
         if (input.location) {

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useProfile } from "nostr-hooks";
 import { nip19 } from "nostr-tools";
 
-export function NovaEventHost({ pubkey }: { pubkey?: string | null }) {
+export function NovaEventHost({ pubkey, noLink }: { pubkey?: string | null; noLink?: boolean }) {
   const { profile } = useProfile(pubkey ? { pubkey } : undefined);
 
   const npub = useMemo(() => {
@@ -24,11 +24,14 @@ export function NovaEventHost({ pubkey }: { pubkey?: string | null }) {
     .charAt(0)
     .toUpperCase();
 
+  const Tag = noLink ? "span" : "a";
+  const linkProps = noLink
+    ? {}
+    : { href: npub ? `https://njump.me/${npub}` : undefined, target: "_blank", rel: "noopener noreferrer" };
+
   return (
-    <a
-      href={npub ? `https://njump.me/${npub}` : undefined}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Tag
+      {...linkProps}
       className="inline-flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors w-fit"
     >
       <span className="flex items-center justify-center w-6 h-6 rounded-full overflow-hidden bg-primary-container text-on-primary-container text-xs font-semibold flex-shrink-0">
@@ -45,6 +48,6 @@ export function NovaEventHost({ pubkey }: { pubkey?: string | null }) {
       <span className="type-body-sm">
         Hosted by <span className="font-semibold text-primary">{name}</span>
       </span>
-    </a>
+    </Tag>
   );
 }
