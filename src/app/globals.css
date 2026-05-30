@@ -307,3 +307,39 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+/* ─── Leaflet (map view) theme overrides ───────────────────────────────────── */
+/* Re-skin the default popup/attribution chrome to the nova surface tokens so   */
+/* the map blends with both light and dark themes.                              */
+.leaflet-container {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  background: var(--surface-container-low);
+}
+.leaflet-popup-content-wrapper {
+  background: var(--surface);
+  color: var(--on-surface);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 50%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-overlay);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+}
+.leaflet-popup-tip {
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+}
+.leaflet-popup-close-button {
+  color: var(--on-surface-variant) !important;
+}
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: var(--on-surface) !important;
+}
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 80%, transparent) !important;
+  color: var(--on-surface-variant) !important;
+  border-radius: var(--radius-sm) 0 0 0;
+}
+.leaflet-control-attribution a {
+  color: var(--primary) !important;
+}

@@ -22,6 +22,7 @@ Production runs on port 4000 via PM2 (`ecosystem.config.cjs`).
 - **Data fetching**: TanStack React Query v5
 - **Date/time**: dayjs with utc + timezone plugins
 - **Timezone from coords**: `tz-lookup` (browser-safe lat/lon → IANA; used when a location is picked in the create form)
+- **Maps**: `react-leaflet` v5 + `leaflet` (Phase 5 map view); raster tiles from CARTO basemaps (light: voyager, dark: dark_all)
 - **Location search**: leaflet-geosearch (OpenStreetMapProvider → Nominatim)
 - **IndexedDB**: `dexie` (direct dep) — geocode cache; also bundled transitively by `ndk-cache-dexie`
 - **File uploads**: blossom-client-sdk → blossom.nostr.build
@@ -42,6 +43,7 @@ src/
     calendars/                      # browse calendars
     event/[id]/                     # event detail page
     events/                         # main events feed (default landing)
+    map/                            # events map (Phase 5 — pins, radius filter, geolocation)
     new-event/                      # create event (Phase 4 — nova create form)
     new-calendar/                   # create calendar (legacy MUI)
   components/
@@ -100,6 +102,12 @@ src/
         CoverImageInput.tsx         # blossom cover upload (reuses useBlossomUpload)
         LocationSearchInput.tsx     # debounced Nominatim combobox → coords (drives tz + geohash)
         TagInput.tsx                # chip input (hashtags / reference links)
+      map/                          # events map (Phase 5)
+        useNovaMapEvents.ts         # fetch + day filter + coord resolution (geohash→decode, location→geocodeCache) + Haversine radius filter + geolocation
+        NovaMapPage.tsx             # map page composition (overlays + dynamic ssr:false map)
+        EventMap.tsx                # react-leaflet map: themed CARTO tiles, CircleMarker pins + popups, radius Circle, user-location marker, fly/fit controller
+        RadiusFilter.tsx            # distance filter: quick-select chips + slider
+        MapControls.tsx             # floating zoom +/- and crosshair (browser geolocation)
   providers/
     ClientProviders.tsx             # NDK init, nostr-login, React Query, i18n (no MUI)
   services/
@@ -163,7 +171,8 @@ src/
 | Nominatim (OpenStreetMap) | Geocoding: location string → coords | `locationUtils.ts`, `FormGeoSearchField` |
 | Overpass API | OSM tags (Bitcoin payment info) | `osmTags.ts` |
 | `blossom.nostr.build` | Image uploads (Blossom protocol) | `useBlossomUpload.ts` |
-| OpenStreetMap embed | Map iframe in event detail | `EventLocationMapCard.tsx` |
+| OpenStreetMap embed | Map iframe in event detail | `NovaEventMap.tsx` |
+| CARTO basemaps | Raster map tiles for the map view | `EventMap.tsx` (Phase 5) |
 
 ## Architecture
 
@@ -186,7 +195,7 @@ src/
 
 ### Location / distance filter
 - The legacy `isLocationWithinRadius()` only resolves coordinates for ~30 hardcoded DACH cities (`LOCATION_NORMALIZATIONS` in `locationUtils.ts`), used only by the legacy `EventFilters.tsx`.
-- **Replacement built in Phase 4:** `geocodeCache.ts` geocodes arbitrary location strings via Nominatim and caches coords in IndexedDB (Dexie, 30-day TTL), keyed by the normalised string. The create form pre-warms it on every location pick. Phase 5's radius filter consumes it; the hardcoded dict + `EventFilters` are deleted together in Phase 6.
+- **Replacement built in Phase 4:** `geocodeCache.ts` geocodes arbitrary location strings via Nominatim and caches coords in IndexedDB (Dexie, 30-day TTL), keyed by the normalised string. The create form pre-warms it on every location pick. **Phase 5's map radius filter now consumes it** (`useNovaMapEvents.ts`): geohash `g` tags decode instantly, location strings fall back to `geocodeLocation`, and `calculateDistance` (Haversine) filters by radius from a center set via geolocation or search. The hardcoded dict + legacy `EventFilters` are deleted together in Phase 6.
 
 ### Nominatim language - #6 (still open)
 - `FormGeoSearchField` (legacy) and the nova `LocationSearchInput` both pass `accept-language: "en"` so saved location strings stay consistent across users.
@@ -228,9 +237,9 @@ Italian users get German fallback in dayjs locale (`dayjsConfig.ts:33`), but sho
 
 ## Future Improvements
 
-### Nova UI — Phase 4 complete (branch: nova-event-creation)
+### Nova UI — Phase 5 complete (branch: nova-map)
 
-The nova UI rebuild is in progress. Phases 1–4 are done.
+The nova UI rebuild is in progress. Phases 1–5 are done.
 
 **Phase 1 (branch: nova-foundation):**
 - `ClientProviders` stripped to base layer (NDK, React Query, i18n, nostr-login — no MUI)
@@ -260,6 +269,14 @@ The nova UI rebuild is in progress. Phases 1–4 are done.
 - **Timezone auto-detected** from the picked location's coordinates via `tz-lookup` (browser-safe; chosen over the Node-only `geo-tz` named in the original plan), user-overridable through the timezone `<select>`.
 - Form fields: cover upload (`CoverImageInput` → `useBlossomUpload`), title, short summary (`summary` tag), description (`content`), location (`LocationSearchInput`), start/end, timezone, hashtags + links (`TagInput`). Calendar-reference picker intentionally omitted for now.
 - **Geocode cache (`geocodeCache.ts`):** Nominatim + Dexie (direct), 30-day TTL, keyed by normalised location string. The replacement for the hardcoded DACH dict; pre-warmed on each location pick, consumed by Phase 5's radius filter. Legacy dict + `EventFilters` removed in Phase 6.
+
+**Phase 5 (branch: nova-map):**
+- New `/map` route (was linked in `TopBar`/`BottomNav` but 404'd). `NovaMapPage` composes a full-bleed `react-leaflet` map with overlay controls; the map is loaded via `next/dynamic` with `ssr:false` (leaflet touches `window`). `leaflet` + `@types/leaflet` added as deps (react-leaflet v5 was already present).
+- **Pins:** `useNovaMapEvents` fetches the same upcoming events as the list, filters to the selected day (shared `DaySwitcher`), then resolves a coordinate per event — `g` geohash decoded instantly via `decodeGeohash`, otherwise the `location` string is geocoded through the cached/rate-limited `geocodeLocation` (so pins fill in progressively and only the selected day is geocoded). `EventMap` renders one `CircleMarker` per event with a click-popup card (title, category, time, location, "View details" → `/event/<naddr>`). Themed CARTO raster tiles (light voyager / dark dark_all) switch with `useTheme`.
+- **Radius filter:** `RadiusFilter` = quick-select chips (1/5/10/25/50 km + Any) plus a 1–100 km slider. Distance is measured with `calculateDistance` (Haversine) from a center point; a `Circle` visualises the radius and out-of-range pins are hidden.
+- **Geolocation:** `MapControls` (floating bottom-right) has zoom +/- and a crosshair that calls `getCurrentLocation()` → sets the center to "Your location" and defaults radius to 25 km. The center can also be set by the location search in the top overlay. A `MapController` flies to the center on change and fits all pins into view once per day.
+- Leaflet popup/attribution chrome is re-skinned to nova surface tokens in `globals.css`.
+- Deferred: clustering for dense areas, persisting the chosen center/radius, and a list⇆map shared filter state.
 
 **Design system:** two variants in `WORKING/NEW_UI/`:
 - **Aetheric Lumina** — light, purple primary `#7c2db1`, surface `#fbf8ff`. Ref screens: `events_list_mobile_light`, `event_details_mobile_light`, `events_map_desktop_light`
