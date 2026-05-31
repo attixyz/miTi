@@ -4,7 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useNdk } from "nostr-hooks";
 import { type NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
+import { useFilters } from "@/providers/FiltersContext";
+import { useEventCoordinates } from "@/components/nova/map/useEventCoordinates";
+import { calculateDistance } from "@/utils/location/locationUtils";
 import dayjs from "dayjs";
+
+// Stable empty array so passing "nothing to resolve" doesn't churn the
+// coordinate hook's effect on every render.
+const NO_EVENTS: NDKEvent[] = [];
 
 export function getEventStart(event: NDKEvent): dayjs.Dayjs | null {
   const metadata = getEventMetadata(event);
@@ -22,6 +29,7 @@ export function getEventStart(event: NDKEvent): dayjs.Dayjs | null {
 
 export function useNovaEvents() {
   const { ndk } = useNdk();
+  const { location, radiusKm } = useFilters();
   const [allEvents, setAllEvents] = useState<NDKEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string>(
@@ -121,25 +129,50 @@ export function useNovaEvents() {
     });
   }, [allEvents, selectedDay]);
 
+  // App-wide location filter: when a location is set with a concrete radius
+  // ("Any distance" = null skips this), keep only the day's events within that
+  // radius. Coordinates resolve via the shared hook (geohash decode + cached
+  // Nominatim); events whose coordinate hasn't resolved yet — or can't be —
+  // are excluded while the filter is active, so the list fills in progressively.
+  // Only resolve coordinates while a filter is active, so the unfiltered list
+  // never triggers Nominatim traffic it doesn't need.
+  const locationActive = location != null && radiusKm != null;
+  const { coordsById, resolving } = useEventCoordinates(
+    locationActive ? dayEvents : NO_EVENTS
+  );
+
+  const geoEvents = useMemo(() => {
+    if (!locationActive || !location || radiusKm == null) return dayEvents;
+    const origin = { latitude: location.lat, longitude: location.lon };
+    return dayEvents.filter((e) => {
+      const c = coordsById[e.id];
+      if (!c) return false;
+      return (
+        calculateDistance(origin, { latitude: c.lat, longitude: c.lon }) <=
+        radiusKm
+      );
+    });
+  }, [dayEvents, coordsById, locationActive, location, radiusKm]);
+
   const availableTags = useMemo(() => {
     const tags = new Set<string>();
-    dayEvents.forEach((e) => {
+    geoEvents.forEach((e) => {
       getEventMetadata(e).hashtags.forEach((tag: string) =>
         tags.add(tag.toLowerCase())
       );
     });
     return Array.from(tags).sort();
-  }, [dayEvents]);
+  }, [geoEvents]);
 
   const filteredEvents = useMemo(() => {
-    if (activeTags.length === 0) return dayEvents;
-    return dayEvents.filter((e) => {
+    if (activeTags.length === 0) return geoEvents;
+    return geoEvents.filter((e) => {
       const eventTags = getEventMetadata(e).hashtags.map((t: string) =>
         t.toLowerCase()
       );
       return activeTags.some((tag) => eventTags.includes(tag));
     });
-  }, [dayEvents, activeTags]);
+  }, [geoEvents, activeTags]);
 
   const toggleTag = (tag: string) => {
     setActiveTags((prev) =>
@@ -157,5 +190,11 @@ export function useNovaEvents() {
     setSelectedDay,
     daysWithEvents,
     totalCount: allEvents.length,
+    // Location filter status (consumed by the page for a header line).
+    locationActive,
+    locationLabel: location?.label ?? null,
+    radiusKm,
+    // Still geocoding some of the day's events while a location filter is on.
+    locationResolving: locationActive && resolving,
   };
 }

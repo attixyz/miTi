@@ -44,6 +44,13 @@ export function LocationSearchInput({ value, onChange }: LocationSearchInputProp
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  // Reflect a value set programmatically by the parent (e.g. the crosshair's
+  // "Near me") in the visible text. Typing sets `value` to null (see onInput),
+  // so this never clobbers in-progress input.
+  useEffect(() => {
+    if (value && value.label !== query) setQuery(value.label);
+  }, [value, query]);
+
   async function getProvider() {
     if (providerRef.current) return providerRef.current;
     const { OpenStreetMapProvider } = await import("leaflet-geosearch");

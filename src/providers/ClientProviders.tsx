@@ -6,6 +6,7 @@ import { initI18n } from "@/lib/i18n";
 import { useNdk } from "nostr-hooks";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLanguageSync } from "@/hooks/useLanguageSync";
+import { FiltersProvider } from "@/providers/FiltersContext";
 import { DEFAULT_RELAYS } from "@/lib/relays";
 import type { NDKNip07Signer } from "@nostr-dev-kit/ndk";
 
@@ -109,7 +110,9 @@ export default function ClientProviders({
   return (
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18nInstance}>
-        <BaseProviderContent>{children}</BaseProviderContent>
+        <FiltersProvider>
+          <BaseProviderContent>{children}</BaseProviderContent>
+        </FiltersProvider>
       </I18nextProvider>
     </QueryClientProvider>
   );

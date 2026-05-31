@@ -18,6 +18,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { LoginButton } from "./LoginButton";
 import { LogoutButton } from "./LogoutButton";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { LocationFilterControl } from "@/components/nova/filter/LocationFilterControl";
 
 type NavItem = { href: string; icon: LucideIcon; label: string };
 type NavSection = { header: string; items: NavItem[] };
@@ -70,10 +71,12 @@ export function Sidebar() {
     >
       <Link
         href="/events"
-        className="px-3 mb-6 text-xl font-bold text-primary tracking-tight"
+        className="px-3 mb-4 text-xl font-bold text-primary tracking-tight"
       >
         Meetstr
       </Link>
+
+      <LocationFilterControl className="mb-6 w-full" />
 
       <nav className="flex-1 flex flex-col gap-6 overflow-y-auto">
         {SECTIONS.map((section) => (

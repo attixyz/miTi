@@ -1,17 +1,37 @@
 "use client";
 
+import { useState } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { Plus, Minus, Crosshair, Loader2 } from "lucide-react";
+import { getCurrentLocation } from "@/utils/location/locationUtils";
 import { cn } from "@/lib/utils";
+
+/** Zoom the map settles at after centering on the visitor's location. */
+const LOCATE_ZOOM = 14;
 
 interface MapControlsProps {
   map: LeafletMap | null;
-  onLocate: () => void;
-  locating: boolean;
 }
 
-/** Floating bottom-right cluster: zoom in/out + browser geolocation crosshair. */
-export function MapControls({ map, onLocate, locating }: MapControlsProps) {
+/** Floating bottom-right cluster: zoom in/out + center-on-my-location. */
+export function MapControls({ map }: MapControlsProps) {
+  const [locating, setLocating] = useState(false);
+
+  // Pans/zooms the map to the visitor's position. Purely a view change — it
+  // does NOT touch the shared location filter (FiltersContext).
+  async function locate() {
+    if (!map) return;
+    setLocating(true);
+    try {
+      const { latitude, longitude } = await getCurrentLocation();
+      map.flyTo([latitude, longitude], LOCATE_ZOOM, { duration: 0.8 });
+    } catch {
+      // Geolocation denied/unavailable — nothing to center on.
+    } finally {
+      setLocating(false);
+    }
+  }
+
   return (
     <div className="absolute right-3 md:right-6 bottom-28 md:bottom-6 z-[1100] flex flex-col gap-2">
       <ControlButton label="Zoom in" onClick={() => map?.zoomIn()}>
@@ -20,7 +40,11 @@ export function MapControls({ map, onLocate, locating }: MapControlsProps) {
       <ControlButton label="Zoom out" onClick={() => map?.zoomOut()}>
         <Minus size={18} />
       </ControlButton>
-      <ControlButton label="Use my location" onClick={onLocate} className="mt-1">
+      <ControlButton
+        label="Center on my location"
+        onClick={locate}
+        className="mt-1"
+      >
         {locating ? (
           <Loader2 size={18} className="animate-spin" />
         ) : (

@@ -7,9 +7,7 @@ import {
   MapContainer,
   TileLayer,
   CircleMarker,
-  Circle,
   Popup,
-  Tooltip,
   useMap,
 } from "react-leaflet";
 import type { Map as LeafletMap } from "leaflet";
@@ -18,7 +16,8 @@ import { nip19 } from "nostr-tools";
 import { Clock, MapPin, ArrowRight } from "lucide-react";
 import dayjs from "dayjs";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
-import type { MapEvent, MapCenter } from "./useNovaMapEvents";
+import type { MapEvent } from "./useNovaMapEvents";
+import type { FilterLocation } from "@/providers/FiltersContext";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { getEventStart } from "@/components/nova/events/useNovaEvents";
 import { useTheme } from "@/hooks/useTheme";
@@ -45,11 +44,8 @@ const THEME = {
   },
 } as const;
 
-/** Rough km → zoom mapping so the chosen radius roughly fills the viewport. */
-function zoomForRadius(radiusKm: number): number {
-  const z = Math.round(14 - Math.log2(radiusKm));
-  return Math.max(3, Math.min(15, z));
-}
+/** Zoom used when the map centers on the filter location. */
+const FILTER_ZOOM = 14;
 
 function eventHref(event: NDKEvent): string {
   try {
@@ -86,17 +82,15 @@ function MapReady({ onReady }: { onReady?: (map: LeafletMap) => void }) {
 }
 
 /**
- * Flies to the center when it changes and fits all pins into view once per day
- * (keyed by `fitKey`) as long as the user hasn't pinned a center themselves.
+ * Centers on the filter location (zoom 11) whenever it's set; otherwise fits all
+ * of the day's pins into view once per day (keyed by `fitKey`).
  */
 function MapController({
   center,
-  radiusKm,
   events,
   fitKey,
 }: {
-  center: MapCenter | null;
-  radiusKm: number | null;
+  center: FilterLocation | null;
   events: MapEvent[];
   fitKey: string;
 }) {
@@ -105,13 +99,11 @@ function MapController({
 
   useEffect(() => {
     if (!center) return;
-    map.flyTo([center.lat, center.lon], radiusKm ? zoomForRadius(radiusKm) : 12, {
-      duration: 0.8,
-    });
-  }, [center, radiusKm, map]);
+    map.flyTo([center.lat, center.lon], FILTER_ZOOM, { duration: 0.8 });
+  }, [center, map]);
 
   useEffect(() => {
-    if (center) return; // user-driven center wins
+    if (center) return; // filter-driven center wins
     if (fittedKeyRef.current === fitKey) return;
     if (events.length === 0) return;
     fittedKeyRef.current = fitKey;
@@ -136,8 +128,7 @@ function MapController({
 
 interface EventMapProps {
   events: MapEvent[];
-  center: MapCenter | null;
-  radiusKm: number | null;
+  center: FilterLocation | null;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMapReady?: (map: LeafletMap) => void;
@@ -148,7 +139,6 @@ interface EventMapProps {
 export function EventMap({
   events,
   center,
-  radiusKm,
   selectedId,
   onSelect,
   onMapReady,
@@ -175,25 +165,7 @@ export function EventMap({
       />
 
       <MapReady onReady={onMapReady} />
-      <MapController
-        center={center}
-        radiusKm={radiusKm}
-        events={events}
-        fitKey={fitKey}
-      />
-
-      {center && radiusKm != null && (
-        <Circle
-          center={[center.lat, center.lon]}
-          radius={radiusKm * 1000}
-          pathOptions={{
-            color: c.radius,
-            weight: 1,
-            fillColor: c.radius,
-            fillOpacity: 0.08,
-          }}
-        />
-      )}
+      <MapController center={center} events={events} fitKey={fitKey} />
 
       {events.map((me) => {
         const selected = me.event.id === selectedId;
@@ -216,21 +188,6 @@ export function EventMap({
           </CircleMarker>
         );
       })}
-
-      {center && (
-        <CircleMarker
-          center={[center.lat, center.lon]}
-          radius={6}
-          pathOptions={{
-            color: c.ring,
-            weight: 2,
-            fillColor: c.user,
-            fillOpacity: 1,
-          }}
-        >
-          <Tooltip>{center.label}</Tooltip>
-        </CircleMarker>
-      )}
     </MapContainer>
   );
 }
