@@ -12,8 +12,13 @@ export async function GET(
 
   const ndk = getNdk();
 
-  // Fetch calendar event
-  const calendarEvent = await fetchEventById(ndk, calendarNaddr);
+  // Fetch calendar event. This endpoint is polled by calendar apps, so bound
+  // the lookup (3s) and honour any relay hints in the naddr (with a fallback to
+  // the default pool) so a slow/missing relay can't blank out the subscription.
+  const calendarEvent = await fetchEventById(ndk, calendarNaddr, {
+    timeoutMs: 3000,
+    useRelayHints: true,
+  });
   if (!calendarEvent || calendarEvent.kind !== 31924) {
     return NextResponse.json(
       { error: "Invalid calendar ID or event not found" },

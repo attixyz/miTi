@@ -14,16 +14,21 @@ export async function GET(
     const { id: calendarId } = await params;
 
     const ndk = getNdk();
-    const calendarEvent = await fetchEventById(ndk, calendarId);
+    // Bounded fetch; on miss/timeout render a generic branded card (200)
+    // rather than a broken 404 image for the crawler.
+    const calendarEvent = await fetchEventById(ndk, calendarId, {
+      timeoutMs: 3000,
+    });
+    const metadata =
+      calendarEvent && calendarEvent.kind === 31924
+        ? getEventMetadata(calendarEvent)
+        : null;
 
-    if (!calendarEvent || calendarEvent.kind !== 31924) {
-      return new Response("Calendar not found", { status: 404 });
-    }
-
-    const metadata = getEventMetadata(calendarEvent);
-    const title = metadata.title || "Unnamed Calendar";
+    const title = metadata?.title || "Calendar on Meetstr";
     const description =
-      metadata.summary || calendarEvent.content || "A Nostr calendar";
+      metadata?.summary ||
+      calendarEvent?.content ||
+      "Discover Nostr calendar events";
 
     return new ImageResponse(
       (

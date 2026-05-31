@@ -5,7 +5,8 @@ import { CalendarPlus, Download, Link2, Rss } from "lucide-react";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
 import { cn } from "@/lib/utils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
-import { encodeEventToNaddr } from "@/utils/nostr/nostrUtils";
+import { encodeNaddrWithRelays } from "@/utils/nostr/nostrUtils";
+import { DEFAULT_RELAYS } from "@/lib/relays";
 
 /** Subscribe / download / copy a calendar as an .ics feed (server route). */
 export function NovaCalendarIcs({ calendar }: { calendar: NDKEvent }) {
@@ -26,7 +27,8 @@ export function NovaCalendarIcs({ calendar }: { calendar: NDKEvent }) {
 
   function webcalUrl() {
     const host = window.location.origin.replace(/^https?:\/\//, "");
-    return `webcal://${host}/api/calendar/${encodeEventToNaddr(calendar)}/ics`;
+    const naddr = encodeNaddrWithRelays(calendar, DEFAULT_RELAYS);
+    return `webcal://${host}/api/calendar/${naddr}/ics`;
   }
 
   function subscribe() {

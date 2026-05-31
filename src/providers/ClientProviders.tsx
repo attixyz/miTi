@@ -6,6 +6,7 @@ import { initI18n } from "@/lib/i18n";
 import { useNdk } from "nostr-hooks";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLanguageSync } from "@/hooks/useLanguageSync";
+import { DEFAULT_RELAYS } from "@/lib/relays";
 import type { NDKNip07Signer } from "@nostr-dev-kit/ndk";
 
 const queryClient = new QueryClient({
@@ -28,13 +29,6 @@ const queryClient = new QueryClient({
     mutations: { retry: 1 },
   },
 });
-
-const RELAY_URLS = [
-  "wss://relay.damus.io",
-  "wss://relay.nostr.band",
-  "wss://nos.lol",
-  "wss://nostr.wine",
-];
 
 function BaseProviderContent({ children }: { children: ReactNode }) {
   const { initNdk, ndk } = useNdk();
@@ -61,9 +55,9 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
       if (typeof window !== "undefined" && window.nostr) {
         const { NDKNip07Signer: Signer } = await import("@nostr-dev-kit/ndk");
         const signer: NDKNip07Signer = new Signer();
-        initNdkRef.current({ explicitRelayUrls: RELAY_URLS, signer, cacheAdapter });
+        initNdkRef.current({ explicitRelayUrls: DEFAULT_RELAYS, signer, cacheAdapter });
       } else {
-        initNdkRef.current({ explicitRelayUrls: RELAY_URLS, cacheAdapter });
+        initNdkRef.current({ explicitRelayUrls: DEFAULT_RELAYS, cacheAdapter });
       }
     };
 

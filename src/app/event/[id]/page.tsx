@@ -17,7 +17,9 @@ export async function generateMetadata(
 
   try {
     const ndk = getNdk();
-    const event = await fetchEventById(ndk, eventId);
+    // Blocking SSR for crawlers — bound the fetch so a slow relay can't stall
+    // the response; on timeout we fall through to the generic fallback below.
+    const event = await fetchEventById(ndk, eventId, { timeoutMs: 3000 });
 
     if (!event || (event.kind !== 31922 && event.kind !== 31923)) {
       return {

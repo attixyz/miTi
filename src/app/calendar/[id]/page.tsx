@@ -17,7 +17,11 @@ export async function generateMetadata(
 
   try {
     const ndk = getNdk();
-    const calendarEvent = await fetchEventById(ndk, calendarId);
+    // Blocking SSR for crawlers — bound the fetch so a slow relay can't stall
+    // the response; on timeout we fall through to the generic fallback below.
+    const calendarEvent = await fetchEventById(ndk, calendarId, {
+      timeoutMs: 3000,
+    });
 
     if (!calendarEvent || calendarEvent.kind !== 31924) {
       return {

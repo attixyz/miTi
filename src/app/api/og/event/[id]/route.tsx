@@ -14,19 +14,21 @@ export async function GET(
     const { id: eventId } = await params;
 
     const ndk = getNdk();
-    const event = await fetchEventById(ndk, eventId);
+    // Bounded fetch; on miss/timeout render a generic branded card (200)
+    // rather than a broken 404 image for the crawler.
+    const event = await fetchEventById(ndk, eventId, { timeoutMs: 3000 });
+    const metadata =
+      event && (event.kind === 31922 || event.kind === 31923)
+        ? getEventMetadata(event)
+        : null;
 
-    if (!event || (event.kind !== 31922 && event.kind !== 31923)) {
-      return new Response("Event not found", { status: 404 });
-    }
-
-    const metadata = getEventMetadata(event);
-    const title = metadata.title || "Unnamed Event";
-    const description = metadata.summary || event.content || "A Nostr event";
-    const location = metadata.location || "";
+    const title = metadata?.title || "Event on Meetstr";
+    const description =
+      metadata?.summary || event?.content || "Discover Nostr calendar events";
+    const location = metadata?.location || "";
 
     // Format date
-    const startTimestamp = metadata.start ? parseInt(metadata.start) : null;
+    const startTimestamp = metadata?.start ? parseInt(metadata.start) : null;
     const startDate = startTimestamp
       ? new Date(startTimestamp * 1000).toLocaleDateString("en-US", {
           weekday: "long",

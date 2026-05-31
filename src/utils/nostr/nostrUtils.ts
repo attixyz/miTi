@@ -1,18 +1,45 @@
 // src/utils/nostr/nostrUtils.ts
 import type NDK from "@nostr-dev-kit/ndk";
-import { NDKEvent, type NDKFilter } from "@nostr-dev-kit/ndk";
+import { NDKEvent, NDKRelaySet, type NDKFilter } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
+
+export interface FetchEventOptions {
+  /**
+   * Resolve `null` after this many ms. NDK's own `fetchEvent` cap is a
+   * hardcoded 10s; pass a tighter budget on blocking paths (SSR metadata,
+   * the polled ICS feed) so a slow relay can't stall the response.
+   */
+  timeoutMs?: number;
+  /**
+   * For `naddr` identifiers carrying relay hints, query those relays first and
+   * fall back to the default pool if they don't have the event. NDK only honours
+   * bech32 relay hints when given the string form, so we build the relay set
+   * explicitly here. Off by default to preserve client behaviour.
+   */
+  useRelayHints?: boolean;
+}
+
+/** Race a promise against a timeout that resolves `null`. */
+function withTimeout<T>(p: Promise<T>, ms?: number): Promise<T | null> {
+  if (!ms) return p;
+  return Promise.race([
+    p,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
 
 /**
  * Fetches a Nostr event using various identifier types
  *
  * @param ndk - The initialized NDK instance
  * @param identifier - Can be an event ID, naddr, or other identifier
+ * @param opts - Optional timeout / relay-hint behaviour (see FetchEventOptions)
  * @returns Promise that resolves to the event or null if not found
  */
 export const fetchEventById = async (
   ndk: NDK,
-  identifier: string
+  identifier: string,
+  opts: FetchEventOptions = {}
 ): Promise<NDKEvent | null> => {
   if (!ndk) {
     throw new Error("NDK instance not provided");
@@ -20,6 +47,7 @@ export const fetchEventById = async (
 
   try {
     let filter: NDKFilter;
+    let hintRelays: string[] = [];
 
     // Handle different identifier types
     if (identifier.startsWith("naddr")) {
@@ -33,6 +61,7 @@ export const fetchEventById = async (
             authors: [data.pubkey],
             "#d": [data.identifier],
           };
+          hintRelays = data.relays ?? [];
         } else {
           throw new Error("Invalid naddr format");
         }
@@ -58,9 +87,18 @@ export const fetchEventById = async (
       filter = { ids: [identifier] };
     }
 
-    // Use NDK's fetchEvent method to get the first matching event
-    const event = await ndk.fetchEvent(filter);
-    return event;
+    const run = (relaySet?: NDKRelaySet) =>
+      withTimeout(ndk.fetchEvent(filter, undefined, relaySet), opts.timeoutMs);
+
+    // Relay-hint path: try the hinted relays first, fall back to the pool so a
+    // dead hint can't blank out the result (NDK queries ONLY the hint set).
+    if (opts.useRelayHints && hintRelays.length > 0) {
+      const relaySet = NDKRelaySet.fromRelayUrls(hintRelays, ndk);
+      const hinted = await run(relaySet);
+      if (hinted) return hinted;
+    }
+
+    return await run();
   } catch (error) {
     console.error("Error fetching event:", error);
     return null;
@@ -174,6 +212,13 @@ async function removeDeletedEventsFromCalendar(
   deletedEventRefs: string[]
 ): Promise<void> {
   try {
+    // Never mutate from a context without a signer (the server NDK used by the
+    // metadata/ICS routes has none), and never republish a calendar the current
+    // user doesn't own — signing it would fork it under the viewer's key.
+    if (!ndk.signer) return;
+    const user = await ndk.signer.user();
+    if (!user?.pubkey || user.pubkey !== calendarEvent.pubkey) return;
+
     console.log(
       `Removing ${deletedEventRefs.length} deleted events from calendar`
     );
@@ -279,6 +324,36 @@ export const encodeEventToNevent = (event: NDKEvent): string => {
     });
   } catch (error) {
     console.error("Error encoding event to nevent:", error);
+    return "";
+  }
+};
+
+/**
+ * Encodes an addressable event into a NIP-19 naddr that embeds relay hints, so
+ * a server fetching it (e.g. the polled ICS feed) knows where to look. Hints
+ * come from where NDK actually saw the event, unioned with the given fallback
+ * defaults, capped to keep the resulting URL reasonable.
+ *
+ * Use this ONLY where the longer naddr is worth it (the webcal/ICS link) — the
+ * plain `encodeEventToNaddr` stays hint-free for human-facing/internal URLs.
+ */
+export const encodeNaddrWithRelays = (
+  event: NDKEvent,
+  fallbackRelays: string[] = []
+): string => {
+  try {
+    const dTag = event.tags.find((t) => t[0] === "d")?.[1] || "";
+    const seen = event.onRelays?.map((r) => r.url) ?? [];
+    const relays = Array.from(new Set([...seen, ...fallbackRelays])).slice(0, 4);
+
+    return nip19.naddrEncode({
+      identifier: dTag,
+      pubkey: event.pubkey,
+      kind: event.kind,
+      relays,
+    });
+  } catch (error) {
+    console.error("Error encoding naddr with relays:", error);
     return "";
   }
 };

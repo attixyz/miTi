@@ -35,8 +35,7 @@ Production runs on port 4000 via PM2 (`ecosystem.config.cjs`).
 src/
   app/
     api/
-      calendar/[id]/route.ts        # server-side calendar fetch + location enrichment
-      calendar/[id]/ics/route.ts    # ICS export
+      calendar/[id]/ics/route.ts    # ICS feed: webcal subscription + download (server-side, relay-hinted)
       og/calendar/[id]/route.tsx    # OG image for calendars
       og/event/[id]/route.tsx       # OG image for events
     calendar/[id]/                  # calendar detail page
@@ -105,6 +104,7 @@ src/
     useCalendarEvents.ts
     useLocationInfo.ts              # resolves location string/geohash → coords via Nominatim (DataLoader)
   lib/
+    relays.ts                       # DEFAULT_RELAYS — single source of truth (imported by client + server)
     ndkClient.ts                    # server-side NDK singleton (4 relays)
     i18n.ts
     utils.ts                        # cn() classname helper
@@ -126,7 +126,7 @@ src/
     nostr/
       eventUtils.ts                 # getEventMetadata()
       nipValidator.ts               # NIP-01, NIP-52, NIP-26, NIP-19 validators
-      nostrUtils.ts                 # fetchEventById(), fetchCalendarEvents(), encodeEventToNaddr()
+      nostrUtils.ts                 # fetchEventById() (timeout + relay-hints), fetchCalendarEvents(), encodeEventToNaddr(), encodeNaddrWithRelays()
     seo/
       hashtagExtractor.ts
   middleware.ts                     # i18n only: reads Accept-Language, sets cookies
@@ -184,9 +184,11 @@ src/
 3. `useMemo` filters client-side by: selected day, active tag chips
 4. `NovaEventsPage` renders `DaySwitcher` + `TagFilterChips` + a 3-column `NovaEventCard` grid
 
-### One server-side exception
+### Server-side surface
 
-`GET /api/calendar/[id]` runs on the server. It fetches a specific calendar (31924) and its events via the server-side NDK singleton, does date filtering, enriches events with Nominatim location data via DataLoader (rate-limited), and returns JSON.
+A handful of endpoints run on the server via the `getNdk()` singleton (no signer, no dexie cache): the two `generateMetadata` functions (`event/[id]`, `calendar/[id]`), the OG image routes (`og/event/[id]`, `og/calendar/[id]`), and the ICS feed (`calendar/[id]/ics`). Each does a **bounded** relay fetch — `fetchEventById(..., { timeoutMs: 3000 })` — and falls back to generic-but-200 output on miss/timeout so crawlers never get a broken preview; the ICS feed additionally honours relay hints embedded in the calendar naddr. These exist only to serve non-browser consumers (link-preview crawlers, calendar apps) that can't run the client.
+
+(The old `GET /api/calendar/[id]` JSON enrichment route was **removed** — orphaned after the Phase 6 nova migration, which moved geocoding client-side to `geocodeCache`.)
 
 ## Known Bugs / Limitations
 
@@ -240,53 +242,4 @@ Italian users get German fallback in dayjs locale (`dayjsConfig.ts:33`), but sho
 
 ## Future Improvements
 
-### Nova UI — Phase 6 complete (branch: nova-cleanup)
-
-The nova UI rebuild is complete. Phases 1–6 are done — the entire app is nova/Tailwind and MUI is gone.
-
-**Phase 1 (branch: nova-foundation):**
-- `ClientProviders` stripped to base layer (NDK, React Query, i18n, nostr-login — no MUI)
-- Tailwind 4 + Geist + shadcn/ui installed; dual-theme CSS custom properties in `globals.css`
-- Nova app shell: `NovaShell`, `TopBar`, `BottomNav`, `ThemeToggle`, `LoginButton`
-- shadcn dark variant wired to `data-theme="dark"` (not `.dark` class)
-
-**Phase 2 (branch: nova-events-list):**
-- `ndk-cache-dexie` wired as NDK cache adapter — IndexedDB persistence across refreshes
-- `UpcomingEventsSection` and `fetchEventsQuick` removed; replaced by `useNovaEvents` hook
-- Nova events list page: `DaySwitcher`, `TagFilterChips`, `NovaEventCard`, 3-column grid
-- Nominatim `accept-language: "en"` fix applied (untested pending event creation UI)
-- `nostr-login` banner disabled (`noBanner: true`) — modal only on explicit user action
-
-**Phase 3 (branch: nova-event-detail):**
-- `getEventMetadata` now exposes NIP-52 text fields separately — `shortDescription` (`summary` tag), `description` (`description` tag), `content` (`event.content`) — without changing the legacy combined `summary` field that ~15 calendar/OG/ICS/search consumers still read. Detail page shows short_description = `summary`, main_text = `content || description`.
-- `image` falls back to a legacy `cover` tag.
-- New event detail route: MUI `EventOverview` replaced by `NovaEventDetail` (`EventPageClient` uses `use(params)` + nova). Skeleton-first SSR shell; `useNovaEvent` subscribes cache-first so cached text paints instantly while cover image, map (Nominatim) and Overpass payment badges fill in progressively.
-- RSVP is functional and nova-native (`useNovaRsvp`): publishes kind 31925, retracts the prior RSVP via a kind-5 deletion, prompts `nlLaunch` login when logged out. No SnackbarContext/i18next dependency (not in the stripped providers).
-- Like button: local visual toggle only, **publishes nothing** (deferred). Flag menu (spam/block/hide): UI only, handlers are placeholders pending moderation logic.
-- Timezone *display* fixed via `eventSchedule.ts` (see Timezone handling above). Save-side fix landed in Phase 4.
-- "Related Events" (in the design) intentionally deferred to Phase 7 (tag/organizer similarity).
-
-**Phase 4 (branch: nova-event-creation):**
-- New `/new-event` route (the nav already linked to it; it 404'd before). Nova create form (`NovaCreateEventPage`) replaces the MUI `CreateNewEventDialog`; publishes kind 31923 via `useCreateEvent` (NDK-native signing, prompts `nlLaunch` when logged out).
-- **Timezone save bug fixed:** times are read from `datetime-local` (zone-less wall-clock) and saved with `dayjs.tz(wallClock, timezone).unix()`. Verified across machine zones (Rome/NY users both produce correct Tokyo timestamps).
-- **Timezone auto-detected** from the picked location's coordinates via `tz-lookup` (browser-safe; chosen over the Node-only `geo-tz` named in the original plan), user-overridable through the timezone `<select>`.
-- Form fields: cover upload (`CoverImageInput` → `useBlossomUpload`), title, short summary (`summary` tag), description (`content`), location (`LocationSearchInput`), start/end, timezone, hashtags + links (`TagInput`). Calendar-reference picker intentionally omitted for now.
-- **Geocode cache (`geocodeCache.ts`):** Nominatim + Dexie (direct), 30-day TTL, keyed by normalised location string. The replacement for the hardcoded DACH dict; pre-warmed on each location pick, consumed by Phase 5's radius filter. Legacy dict + `EventFilters` removed in Phase 6.
-
-**Phase 5 (branch: nova-map):**
-- New `/map` route (was linked in `TopBar`/`BottomNav` but 404'd). `NovaMapPage` composes a full-bleed `react-leaflet` map with overlay controls; the map is loaded via `next/dynamic` with `ssr:false` (leaflet touches `window`). `leaflet` + `@types/leaflet` added as deps (react-leaflet v5 was already present).
-- **Pins:** `useNovaMapEvents` fetches the same upcoming events as the list, filters to the selected day (shared `DaySwitcher`), then resolves a coordinate per event — `g` geohash decoded instantly via `decodeGeohash`, otherwise the `location` string is geocoded through the cached/rate-limited `geocodeLocation` (so pins fill in progressively and only the selected day is geocoded). `EventMap` renders one `CircleMarker` per event with a click-popup card (title, category, time, location, "View details" → `/event/<naddr>`). Themed CARTO raster tiles (light voyager / dark dark_all) switch with `useTheme`.
-- **Radius filter:** `RadiusFilter` = quick-select chips (1/5/10/25/50 km + Any) plus a 1–100 km slider. Distance is measured with `calculateDistance` (Haversine) from a center point; a `Circle` visualises the radius and out-of-range pins are hidden.
-- **Geolocation:** `MapControls` (floating bottom-right) has zoom +/- and a crosshair that calls `getCurrentLocation()` → sets the center to "Your location" and defaults radius to 25 km. The center can also be set by the location search in the top overlay. A `MapController` flies to the center on change and fits all pins into view once per day.
-- Leaflet popup/attribution chrome is re-skinned to nova surface tokens in `globals.css`.
-- Deferred: clustering for dense areas, persisting the chosen center/radius, and a list⇆map shared filter state.
-
-**Phase 6 (branch: nova-cleanup):**
-- **Calendar feature migrated to nova** (`src/components/nova/calendar/`): `/calendars` browse, `/calendar/[id]` detail (hero, host, ICS subscribe/download, owner edit/delete, add-event, approved/all-meetups toggle with owner approve), `/new-calendar` create + `?edit=<naddr>` edit. NDK-native mutations (`useCalendarMutations`: create/edit/delete/approveEvent, kind 31924). `NostrEntityPicker` (paste naddr / debounced text search) replaces the 756-line `NostrEntitySearchField`. Event creation gained `?calendar=<naddr>` — adds the event's `a` tag and, if the user owns the calendar, appends the event to it.
-- **All MUI + Emotion removed** from `package.json`, plus orphaned deps (`lodash`, `maplibre-gl`, `react-map-gl`, `opencage-api-client`, `react-qr-code`, `uuid`, `@types/lodash`). The whole legacy tree deleted: `components/common/**`, `features/**`, `NostrEventCreation/**`, `context/SnackbarContext`, `theme.ts`, `ProTip`, the `/about` route, and legacy hooks `useNostrEvent`/`useRsvpHandler`/`useNostrUrlUpdate`.
-- `eventCacheUtils.ts` deleted (redundant with `ndk-cache-dexie`); browse counts come from the calendar's `a`-tag count.
-- `locationUtils.ts` trimmed 554→~190 lines: dropped the DACH dict, `isLocationWithinRadius`, and console noise; kept `getLocationInfo`, `calculateDistance`, `getCurrentLocation` (the Nominatim rate limiter is retained — it's load-bearing).
-- **`authService` removed.** `useActiveUser` now derives the user from nostr-login's `nlAuth`/`nlLogout` events (module-cached, no `getPublicKey()` probe on mount → no login prompt when logged out); `useBlossomUpload` signs via `window.nostr`. ⚠ The login/RSVP/publish flows compile but were **not** manually verified after this refactor — worth a smoke test.
-- Added relays `relay.nostr.band`, `nos.lol`, `nostr.wine` (+ damus); added "Calendars" to the desktop `TopBar` nav (BottomNav left at 5 items).
-
-**Deferred / left as-is:** `LanguageProvider`, `components/structured-data/`, `components/ui/button`, and `useCalendarData`/`useCalendarEvents` remain (non-MUI; currently unused). Phase 7 = suggested/related events, calendar views, spam filter.
+**Deferred / left as-is:** `LanguageProvider`, `components/structured-data/`, `components/ui/button`, and `useCalendarData`/`useCalendarEvents` remain (non-MUI; currently unused).

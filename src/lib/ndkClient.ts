@@ -1,17 +1,13 @@
 // src/lib/ndkClient.ts
 import NDK from "@nostr-dev-kit/ndk";
+import { DEFAULT_RELAYS } from "@/lib/relays";
 
 let ndkInstance: NDK | null = null;
 
 export function getNdk(): NDK {
   if (!ndkInstance) {
     ndkInstance = new NDK({
-      explicitRelayUrls: [
-        "wss://relay.damus.io",
-        //"wss://relay.nostr.band",
-        //"wss://nos.lol",
-        //"wss://nostr.wine",
-      ],
+      explicitRelayUrls: [...DEFAULT_RELAYS],
     });
     ndkInstance.connect().catch(console.error);
   }
