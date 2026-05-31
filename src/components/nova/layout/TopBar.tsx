@@ -9,12 +9,12 @@ export function TopBar() {
   return (
     <header
       className={cn(
-        "lg:hidden sticky top-0 z-50 w-full",
-        "bg-surface/80 backdrop-blur-md",
+        "lg:hidden sticky top-0 z-50 w-full h-16",
+        "bg-surface",
         "border-b border-outline-variant/30"
       )}
     >
-      <div className="flex items-center gap-2 px-[var(--margin-mobile)] py-3">
+      <div className="flex h-full items-center gap-2 px-[var(--margin-mobile)]">
         <Link href="/events" className="text-lg font-bold text-primary tracking-tight">
           Meetstr
         </Link>

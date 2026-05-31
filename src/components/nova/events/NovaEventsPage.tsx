@@ -2,6 +2,7 @@
 
 import dayjs from "dayjs";
 import { Loader2, MapPin } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useNovaEvents } from "./useNovaEvents";
 import { DaySwitcher } from "./DaySwitcher";
 import { TagFilterChips } from "./TagFilterChips";
@@ -16,7 +17,6 @@ export function NovaEventsPage() {
     toggleTag,
     selectedDay,
     setSelectedDay,
-    daysWithEvents,
     totalCount,
     locationActive,
     locationLabel,
@@ -31,18 +31,25 @@ export function NovaEventsPage() {
     : selectedDayjs.format("dddd, MMMM D");
 
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="flex flex-col gap-3">
-        <DaySwitcher
-          selectedDay={selectedDay}
-          daysWithEvents={daysWithEvents}
-          onSelect={setSelectedDay}
-        />
-        <TagFilterChips
-          tags={availableTags}
-          activeTags={activeTags}
-          onToggle={toggleTag}
-        />
+    <div className="flex flex-col gap-4 pb-4">
+      <div
+        className={cn(
+          "sticky top-16 lg:top-0 z-30",
+          "bg-surface",
+          "border-b border-outline-variant/30"
+        )}
+      >
+        <div className="flex flex-col gap-3 py-3">
+          <DaySwitcher
+            selectedDay={selectedDay}
+            onSelect={setSelectedDay}
+          />
+          <TagFilterChips
+            tags={availableTags}
+            activeTags={activeTags}
+            onToggle={toggleTag}
+          />
+        </div>
       </div>
 
       <div className="px-[var(--margin-mobile)] md:px-[var(--margin-desktop)]">

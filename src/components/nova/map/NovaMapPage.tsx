@@ -39,7 +39,6 @@ export function NovaMapPage() {
         <div className="pointer-events-auto border-y border-outline-variant/30 bg-surface/70 py-1.5 backdrop-blur-md">
           <DaySwitcher
             selectedDay={m.selectedDay}
-            daysWithEvents={m.daysWithEvents}
             onSelect={m.setSelectedDay}
           />
         </div>

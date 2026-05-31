@@ -6,14 +6,12 @@ import { cn } from "@/lib/utils";
 
 interface DaySwitcherProps {
   selectedDay: string;
-  daysWithEvents: Set<string>;
   onSelect: (day: string) => void;
   windowDays?: number;
 }
 
 export function DaySwitcher({
   selectedDay,
-  daysWithEvents,
   onSelect,
   windowDays = 30,
 }: DaySwitcherProps) {
@@ -37,15 +35,14 @@ export function DaySwitcher({
   return (
     <div
       ref={scrollRef}
-      className="flex gap-2 overflow-x-auto pb-2 px-[var(--margin-mobile)] md:px-[var(--margin-desktop)]"
+      className="flex gap-2 overflow-x-auto pb-2 pr-[var(--margin-mobile)] md:pr-[var(--margin-desktop)]"
     >
       {days.map((day) => {
         const key = day.format("YYYY-MM-DD");
         const isSelected = key === selectedDay;
-        const hasEvents = daysWithEvents.has(key);
         const isToday = day.isSame(dayjs(), "day");
 
-        return (
+        const pill = (
           <button
             key={key}
             ref={isSelected ? selectedRef : undefined}
@@ -70,11 +67,26 @@ export function DaySwitcher({
             <span className="text-lg font-bold leading-tight">
               {day.format("D")}
             </span>
-            {hasEvents && !isSelected && (
-              <span className="w-1 h-1 rounded-full bg-primary mt-0.5" />
-            )}
           </button>
         );
+
+        // Pin "Today" to the left edge: it stays put while the remaining days
+        // scroll horizontally behind it. The wrapper carries the left gutter
+        // (pl) — the scroller itself has none — so the pill lines up with the
+        // event-card column, and its opaque backing spans the whole gutter so
+        // scrolling pills are fully hidden behind it rather than peeking out.
+        if (isToday) {
+          return (
+            <div
+              key={key}
+              className="sticky left-0 z-10 flex-shrink-0 bg-surface pr-2 pl-[var(--margin-mobile)] md:pl-[var(--margin-desktop)]"
+            >
+              {pill}
+            </div>
+          );
+        }
+
+        return pill;
       })}
     </div>
   );
