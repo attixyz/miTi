@@ -37,11 +37,11 @@ const itemClass = cn(
 );
 
 /**
- * Mobile (< lg) account/settings menu. Consolidates login/profile/logout, the
- * theme toggle and the language picker behind a single hamburger button so the
- * narrow top bar stays uncluttered.
+ * Shared account/settings menu in the top bar (all breakpoints). Consolidates
+ * login/profile/logout, the theme toggle and the language picker behind a single
+ * hamburger button so the bar stays uncluttered on both mobile and desktop.
  */
-export function MobileMenu() {
+export function AppMenu() {
   const { t } = useTranslation();
   const activeUser = useActiveUser();
   const { theme, toggle } = useTheme();

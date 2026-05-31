@@ -34,7 +34,7 @@ export function NovaEventsPage() {
     <div className="flex flex-col gap-4 pb-4">
       <div
         className={cn(
-          "sticky top-16 lg:top-0 z-30",
+          "sticky top-16 z-30",
           "bg-surface",
           "border-b border-outline-variant/30"
         )}

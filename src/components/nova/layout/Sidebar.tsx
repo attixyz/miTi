@@ -14,11 +14,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "./ThemeToggle";
-import { LoginButton } from "./LoginButton";
-import { LogoutButton } from "./LogoutButton";
-import { LanguageSwitcher } from "./LanguageSwitcher";
-import { LocationFilterControl } from "@/components/nova/filter/LocationFilterControl";
 
 type NavItem = { href: string; icon: LucideIcon; label: string };
 type NavSection = { header: string; items: NavItem[] };
@@ -56,6 +51,11 @@ function isActive(href: string, pathname: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+/**
+ * Desktop-only left rail beneath the shared top bar. Holds the navigation only —
+ * the brand, location filter and account/theme/language controls live in the
+ * top bar (the latter behind the shared menu), mirroring the mobile bottom nav.
+ */
 export function Sidebar() {
   const pathname = usePathname();
 
@@ -63,21 +63,12 @@ export function Sidebar() {
     <aside
       className={cn(
         "hidden lg:flex lg:flex-col lg:shrink-0",
-        "lg:sticky lg:top-0 lg:h-screen w-60",
+        "lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] w-60",
         "bg-surface/80 backdrop-blur-md",
         "border-r border-outline-variant/30",
         "px-3 py-4"
       )}
     >
-      <Link
-        href="/events"
-        className="px-3 mb-4 text-xl font-bold text-primary tracking-tight"
-      >
-        Meetstr
-      </Link>
-
-      <LocationFilterControl className="mb-6 w-full" />
-
       <nav className="flex-1 flex flex-col gap-6 overflow-y-auto">
         {SECTIONS.map((section) => (
           <div key={section.header} className="flex flex-col gap-0.5">
@@ -106,13 +97,6 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-
-      <div className="mt-4 flex items-center gap-1 border-t border-outline-variant/30 pt-3">
-        <ThemeToggle />
-        <LanguageSwitcher menuClassName="left-0 bottom-full mb-2" />
-        <LoginButton />
-        <LogoutButton />
-      </div>
     </aside>
   );
 }
