@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNdk } from "nostr-hooks";
-import type { NDKEvent } from "@nostr-dev-kit/ndk";
+import { type NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 
@@ -52,25 +52,59 @@ export function useNovaCalendars() {
   useEffect(() => {
     if (!ndk) return;
 
-    const load = async () => {
-      setLoading(true);
-      try {
-        const results = await ndk.fetchEvents({
-          kinds: [31924 as number],
-          limit: 500,
-        });
-        const list = (Array.from(results.values()) as NDKEvent[]).sort(
-          (a, b) => getCalendarEventCount(b) - getCalendarEventCount(a)
-        );
-        setCalendars(list);
-      } catch (e) {
-        console.error("Failed to load calendars", e);
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    setCalendars([]);
+
+    // Dedup by addressable identity (kind:pubkey:d): the cache and each relay
+    // can deliver the same calendar, and replaceable events arrive in multiple
+    // versions — keep the newest copy per key.
+    const byKey = new Map<string, NDKEvent>();
+
+    const flush = () => {
+      const list = Array.from(byKey.values()).sort(
+        (a, b) => getCalendarEventCount(b) - getCalendarEventCount(a)
+      );
+      setCalendars(list);
     };
 
-    load();
+    let sub;
+    try {
+      sub = ndk.subscribe(
+        { kinds: [31924 as number], limit: 500 },
+        { closeOnEose: true, cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }
+      );
+    } catch (e) {
+      console.error("Failed to subscribe to calendars", e);
+      setLoading(false);
+      return;
+    }
+
+    // Cached calendars emit first (CACHE_FIRST), so the grid paints before any
+    // relay answers; relay results merge in as each relay responds. A slow
+    // relay can no longer freeze the page in the skeleton.
+    sub.on("event", (incoming: NDKEvent) => {
+      const key = incoming.deduplicationKey();
+      const existing = byKey.get(key);
+      if (
+        !existing ||
+        (incoming.created_at ?? 0) >= (existing.created_at ?? 0)
+      ) {
+        byKey.set(key, incoming);
+        flush();
+      }
+      setLoading(false);
+    });
+
+    sub.on("eose", () => setLoading(false));
+
+    // Safety net: never stay in the skeleton forever if the cache is empty and
+    // every relay stays silent.
+    const fallback = setTimeout(() => setLoading(false), 8000);
+
+    return () => {
+      clearTimeout(fallback);
+      sub.stop();
+    };
   }, [ndk]);
 
   const filtered = useMemo(() => {

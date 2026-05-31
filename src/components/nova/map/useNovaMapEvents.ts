@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNdk } from "nostr-hooks";
-import type { NDKEvent } from "@nostr-dev-kit/ndk";
+import { type NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import dayjs from "dayjs";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { getEventStart } from "@/components/nova/events/useNovaEvents";
@@ -63,51 +63,92 @@ export function useNovaMapEvents() {
   >({});
   // Events we've already started resolving — avoids re-attempting on every pass.
   const attemptedRef = useRef<Set<string>>(new Set());
+  // Serial geocode queue for location-string events, drained by a persistent
+  // worker. Now that events stream in incrementally (cache-first), new work is
+  // appended here rather than restarting (and stranding) an in-flight lookup.
+  const geocodeQueueRef = useRef<
+    { key: string; query: string; ids: string[] }[]
+  >([]);
+  const geocodeRunningRef = useRef(false);
 
   const [center, setCenter] = useState<MapCenter | null>(null);
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
 
-  // ── Fetch upcoming events (mirrors the list view) ──────────────────────────
+  // ── Fetch upcoming events (mirrors the list view, cache-first) ──────────────
   useEffect(() => {
     if (!ndk) return;
 
-    const load = async () => {
-      setLoading(true);
-      const now = Math.floor(Date.now() / 1000);
-      try {
-        const results = await ndk.fetchEvents({
+    setLoading(true);
+    setAllEvents([]);
+
+    const now = Math.floor(Date.now() / 1000);
+    const todayStart = dayjs().startOf("day");
+
+    // Dedup by addressable identity: the cache and each relay can deliver the
+    // same event, and replaceable events (31922/31923) arrive in multiple
+    // versions. `deduplicationKey()` returns `kind:pubkey:d`; keep the newest.
+    const byKey = new Map<string, NDKEvent>();
+
+    const flush = () => {
+      const upcoming = Array.from(byKey.values())
+        .filter((e) => {
+          const start = getEventStart(e);
+          return start && !start.isBefore(todayStart);
+        })
+        .sort((a, b) => {
+          const aStart = getEventStart(a);
+          const bStart = getEventStart(b);
+          if (!aStart) return 1;
+          if (!bStart) return -1;
+          return aStart.valueOf() - bStart.valueOf();
+        });
+      setAllEvents(upcoming);
+    };
+
+    let sub;
+    try {
+      sub = ndk.subscribe(
+        {
           kinds: [31922 as any, 31923 as any],
           since: now - 30 * 24 * 3600,
           limit: 1000,
-        });
+        },
+        { closeOnEose: true, cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }
+      );
+    } catch (e) {
+      console.error("Failed to subscribe to events", e);
+      setLoading(false);
+      return;
+    }
 
-        const events = Array.from(results.values()) as NDKEvent[];
-        const todayStart = dayjs().startOf("day");
-
-        const upcoming = events
-          .filter((e) => {
-            const start = getEventStart(e);
-            return start && !start.isBefore(todayStart);
-          })
-          .sort((a, b) => {
-            const aStart = getEventStart(a);
-            const bStart = getEventStart(b);
-            if (!aStart) return 1;
-            if (!bStart) return -1;
-            return aStart.valueOf() - bStart.valueOf();
-          });
-
-        setAllEvents(upcoming);
-      } catch (e) {
-        console.error("Failed to load events", e);
-      } finally {
-        setLoading(false);
+    // Cached events emit first (CACHE_FIRST), so pins paint before any relay
+    // answers; relay events merge in as each relay responds. A slow relay can
+    // no longer freeze the page in the skeleton — it just contributes late.
+    sub.on("event", (incoming: NDKEvent) => {
+      const key = incoming.deduplicationKey();
+      const existing = byKey.get(key);
+      if (
+        !existing ||
+        (incoming.created_at ?? 0) >= (existing.created_at ?? 0)
+      ) {
+        byKey.set(key, incoming);
+        flush();
       }
-    };
+      setLoading(false);
+    });
 
-    load();
+    sub.on("eose", () => setLoading(false));
+
+    // Safety net: never stay in the skeleton forever if the cache is empty and
+    // every relay stays silent.
+    const fallback = setTimeout(() => setLoading(false), 8000);
+
+    return () => {
+      clearTimeout(fallback);
+      sub.stop();
+    };
   }, [ndk]);
 
   const daysWithEvents = useMemo(() => {
@@ -127,13 +168,39 @@ export function useNovaMapEvents() {
     });
   }, [allEvents, selectedDay]);
 
-  // ── Resolve coordinates for the selected day's events ───────────────────────
-  useEffect(() => {
-    let cancelled = false;
+  // Drains the geocode queue one entry at a time (Nominatim is rate-limited and
+  // IndexedDB-cached, so repeat lookups resolve instantly). A single persistent
+  // worker means the incremental event stream just appends work — it never
+  // restarts the loop, so an in-flight lookup can't be cancelled and stranded.
+  const drainGeocodeQueue = useCallback(() => {
+    if (geocodeRunningRef.current) return;
+    geocodeRunningRef.current = true;
+    (async () => {
+      try {
+        while (geocodeQueueRef.current.length > 0) {
+          const { query, ids } = geocodeQueueRef.current.shift()!;
+          const coords = await geocodeLocation(query);
+          const resolved: ResolvedCoord | null = coords
+            ? { lat: coords.lat, lon: coords.lon, source: "geocode" }
+            : null;
+          setCoordsById((prev) => {
+            const next = { ...prev };
+            for (const id of ids) next[id] = resolved;
+            return next;
+          });
+        }
+      } finally {
+        geocodeRunningRef.current = false;
+      }
+    })();
+  }, []);
 
+  // ── Resolve coordinates for the selected day's events ───────────────────────
+  // Geohash `g` tags decode synchronously (instant pins); location strings are
+  // enqueued for the serial geocoder above. Each event is attempted once
+  // (attemptedRef), so the incremental stream only ever appends new work.
+  useEffect(() => {
     const syncUpdates: Record<string, ResolvedCoord | null> = {};
-    // location string (normalised) -> the events sharing it (geocode in one go)
-    const toGeocode = new Map<string, { query: string; ids: string[] }>();
 
     for (const e of dayEvents) {
       if (attemptedRef.current.has(e.id)) continue;
@@ -152,10 +219,18 @@ export function useNovaMapEvents() {
       }
 
       if (meta.location) {
+        // Group events sharing a location so we geocode it once. Only entries
+        // still queued are matched; an item already shifted into the worker is
+        // gone from the array, so a duplicate just queues a fast cache hit.
         const key = normalizeLocationKey(meta.location);
-        const entry = toGeocode.get(key);
-        if (entry) entry.ids.push(e.id);
-        else toGeocode.set(key, { query: meta.location, ids: [e.id] });
+        const queued = geocodeQueueRef.current.find((q) => q.key === key);
+        if (queued) queued.ids.push(e.id);
+        else
+          geocodeQueueRef.current.push({
+            key,
+            query: meta.location,
+            ids: [e.id],
+          });
       } else {
         syncUpdates[e.id] = null;
       }
@@ -165,27 +240,8 @@ export function useNovaMapEvents() {
       setCoordsById((prev) => ({ ...prev, ...syncUpdates }));
     }
 
-    // Geocode unique location strings serially (the helper is rate-limited and
-    // IndexedDB-cached, so repeat visits resolve instantly).
-    (async () => {
-      for (const { query, ids } of toGeocode.values()) {
-        const coords = await geocodeLocation(query);
-        if (cancelled) return;
-        const resolved: ResolvedCoord | null = coords
-          ? { lat: coords.lat, lon: coords.lon, source: "geocode" }
-          : null;
-        setCoordsById((prev) => {
-          const next = { ...prev };
-          for (const id of ids) next[id] = resolved;
-          return next;
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dayEvents]);
+    drainGeocodeQueue();
+  }, [dayEvents, drainGeocodeQueue]);
 
   // ── Derived collections ─────────────────────────────────────────────────────
   const mapEvents = useMemo<MapEvent[]>(() => {
