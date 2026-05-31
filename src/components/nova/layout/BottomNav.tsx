@@ -20,7 +20,7 @@ export function BottomNav() {
     <nav
       aria-label="Main navigation"
       className={cn(
-        "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:hidden",
+        "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden",
         "flex items-center justify-around gap-1",
         "w-[90%] max-w-md px-4 py-2",
         // Contrasting (inverse) solid bar so the nav lifts off the page:
