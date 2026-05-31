@@ -99,6 +99,10 @@
     "loading": "Cargando..."
   },
   "logout": "Cerrar sesión",
+  "theme": {
+    "light": "Modo claro",
+    "dark": "Modo oscuro"
+  },
   "tooltip": {
     "openProfile": "Abrir perfil"
   },
@@ -189,7 +193,8 @@
       "loading": "Cargando...",
       "login": "Iniciar sesión",
       "not-found": "Usuario no encontrado en los relays"
-    }
+    },
+    "profile": "Perfil"
   },
   "notification": {
     "accepted": "Aceptar",

@@ -19,7 +19,7 @@ export function initI18n(serverLang: string) {
       .init({
         lng: serverLang, // Always use server language for consistency
         fallbackLng: "en",
-        supportedLngs: ["en", "de"],
+        supportedLngs: ["en", "de", "es"],
         debug: process.env.NODE_ENV === "development",
         ns: ["translation"],
         defaultNS: "translation",

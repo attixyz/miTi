@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "./ThemeToggle";
-import { LoginButton } from "./LoginButton";
+import { MobileMenu } from "./MobileMenu";
 
 export function TopBar() {
   return (
@@ -18,10 +17,7 @@ export function TopBar() {
         <Link href="/events" className="text-lg font-bold text-primary tracking-tight">
           Meetstr
         </Link>
-        <div className="flex items-center gap-1">
-          <ThemeToggle />
-          <LoginButton />
-        </div>
+        <MobileMenu />
       </div>
     </header>
   );

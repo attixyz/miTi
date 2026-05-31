@@ -54,8 +54,8 @@ export function useCreateEvent() {
       if (!ndk) throw new Error("NDK not ready");
 
       if (!activeUser) {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("nlLaunch", {}));
+        if (typeof document !== "undefined") {
+          document.dispatchEvent(new CustomEvent("nlLaunch", { detail: "welcome" }));
         }
         throw new LoginRequiredError();
       }
@@ -66,7 +66,7 @@ export function useCreateEvent() {
       setPublishing(true);
       try {
         if (!(await ensureSigner())) {
-          window.dispatchEvent(new CustomEvent("nlLaunch", {}));
+          document.dispatchEvent(new CustomEvent("nlLaunch", { detail: "welcome" }));
           throw new LoginRequiredError();
         }
 

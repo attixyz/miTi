@@ -99,6 +99,10 @@
     "changeLanguage": "Sprache ändern"
   },
   "logout": "Ausloggen",
+  "theme": {
+    "light": "Heller Modus",
+    "dark": "Dunkler Modus"
+  },
   "tooltip": {
     "openProfile": "Profil Öffnen"
   },
@@ -194,7 +198,8 @@
       "loading": "Laden...",
       "login": "Login",
       "not-found": "Benutzer in Relays nicht gefunden"
-    }
+    },
+    "profile": "Profil"
   },
   "notification": {
     "accepted": "Akzeptieren",

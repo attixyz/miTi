@@ -48,11 +48,15 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
     if (!isClient || initialized.current) return;
     initialized.current = true;
 
-    const init = async () => {
+    // Attach the NIP-07 signer only when the user is actually logged in. A
+    // signer-less NDK never calls window.nostr, so a logged-out session can't
+    // trip nostr-login's "call window.nostr ⇒ auto-launch the modal" behaviour
+    // (the cause of the modal popping up repeatedly after logout).
+    const init = async (withSigner: boolean) => {
       const { default: NDKCacheDexie } = await import("@nostr-dev-kit/ndk-cache-dexie");
       const cacheAdapter = new NDKCacheDexie({ dbName: "meetstr-ndk" }) as any;
 
-      if (typeof window !== "undefined" && window.nostr) {
+      if (withSigner && typeof window !== "undefined" && window.nostr) {
         const { NDKNip07Signer: Signer } = await import("@nostr-dev-kit/ndk");
         const signer: NDKNip07Signer = new Signer();
         initNdkRef.current({ explicitRelayUrls: DEFAULT_RELAYS, signer, cacheAdapter });
@@ -63,18 +67,24 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
 
     import("nostr-login")
       .then(async ({ init: initLogin }) => {
+        // Match the modal to our current theme (purple accent, light/dark).
+        const prefersDark =
+          (localStorage.getItem("meetstr-theme") ?? "dark") === "dark";
         initLogin({
           bunkers: "nsec.app,highlighter.com,amber.app",
           theme: "default",
-          darkMode: false,
+          darkMode: prefersDark,
           perms: "sign_event:1,nip04_encrypt,nip04_decrypt",
           noBanner: true,
           methods: ["connect", "extension", "readOnly", "local"],
-          onAuth: async () => {
-            setTimeout(init, 200);
+          onAuth: async (_npub, options) => {
+            // Re-init with a signer on login/signup, without one on logout.
+            setTimeout(() => init(options?.type !== "logout"), 200);
           },
         });
-        await init();
+        // Start signer-less; onAuth('login') re-inits with a signer once a
+        // stored session is restored or the user logs in explicitly.
+        await init(false);
       })
       .catch((err) => console.error("nostr-login failed to load", err));
   }, [isClient]);

@@ -21,6 +21,10 @@ export function useTheme() {
     setThemeState(next);
     localStorage.setItem(STORAGE_KEY, next);
     document.documentElement.setAttribute("data-theme", next);
+    // Keep the nostr-login modal's light/dark in sync with the app theme.
+    document.dispatchEvent(
+      new CustomEvent("nlDarkMode", { detail: next === "dark" })
+    );
   }
 
   function toggle() {

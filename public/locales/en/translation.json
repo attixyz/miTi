@@ -13,9 +13,14 @@
       "login": "Login",
       "not-found": "User not found in Relays",
       "loading": "Loading..."
-    }
+    },
+    "profile": "Profile"
   },
   "logout": "Logout",
+  "theme": {
+    "light": "Light mode",
+    "dark": "Dark mode"
+  },
   "login": {
     "requireLogin": "Please login to access this page"
   },

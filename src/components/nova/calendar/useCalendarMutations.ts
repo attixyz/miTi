@@ -45,8 +45,8 @@ export function useCalendarMutations() {
   const requireAuth = useCallback(async () => {
     if (!ndk) throw new Error("NDK not ready");
     if (!activeUser || !(await ensureSigner())) {
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("nlLaunch", {}));
+      if (typeof document !== "undefined") {
+        document.dispatchEvent(new CustomEvent("nlLaunch", { detail: "welcome" }));
       }
       throw new LoginRequiredError();
     }

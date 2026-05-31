@@ -16,6 +16,8 @@ import {
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { LoginButton } from "./LoginButton";
+import { LogoutButton } from "./LogoutButton";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 type NavItem = { href: string; icon: LucideIcon; label: string };
 type NavSection = { header: string; items: NavItem[] };
@@ -104,7 +106,9 @@ export function Sidebar() {
 
       <div className="mt-4 flex items-center gap-1 border-t border-outline-variant/30 pt-3">
         <ThemeToggle />
+        <LanguageSwitcher menuClassName="left-0 bottom-full mb-2" />
         <LoginButton />
+        <LogoutButton />
       </div>
     </aside>
   );
