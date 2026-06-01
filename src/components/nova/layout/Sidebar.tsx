@@ -2,54 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  List,
-  Map,
-  Heart,
-  Sparkles,
-  PlusCircle,
-  ShieldAlert,
-  CalendarRange,
-  Server,
-  type LucideIcon,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type NavItem = { href: string; icon: LucideIcon; label: string };
-type NavSection = { header: string; items: NavItem[] };
-
-const SECTIONS: NavSection[] = [
-  {
-    header: "Events",
-    items: [
-      { href: "/events",      icon: List,        label: "List" },
-      { href: "/map",         icon: Map,         label: "Map" },
-      { href: "#",            icon: Heart,       label: "My Favorites" },
-      { href: "/suggested",   icon: Sparkles,    label: "Suggested" },
-      { href: "/new-event",   icon: PlusCircle,  label: "New event" },
-      { href: "#",            icon: ShieldAlert, label: "Spam" },
-    ],
-  },
-  {
-    header: "Calendars",
-    items: [
-      { href: "/calendars",    icon: CalendarRange, label: "Calendars" },
-      { href: "/new-calendar", icon: PlusCircle,    label: "New calendar" },
-    ],
-  },
-  {
-    header: "Settings",
-    items: [
-      { href: "#", icon: Server, label: "Relays" },
-    ],
-  },
-];
-
-function isActive(href: string, pathname: string): boolean {
-  if (href === "#") return false;
-  if (href === "/events") return pathname === "/events";
-  return pathname === href || pathname.startsWith(href + "/");
-}
+import { NAV_SECTIONS, isActive } from "./navSections";
 
 /**
  * Desktop-only left rail beneath the shared top bar. Holds the navigation only —
@@ -70,7 +24,7 @@ export function Sidebar() {
       )}
     >
       <nav className="flex-1 flex flex-col gap-6 overflow-y-auto">
-        {SECTIONS.map((section) => (
+        {NAV_SECTIONS.map((section) => (
           <div key={section.header} className="flex flex-col gap-0.5">
             <h3 className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">
               {section.header}

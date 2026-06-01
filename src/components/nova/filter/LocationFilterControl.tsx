@@ -20,7 +20,7 @@ export function LocationFilterControl({ className }: { className?: string }) {
   const from =
     pathname && !pathname.startsWith("/set-location-filter")
       ? pathname
-      : "/events";
+      : "/list";
 
   return (
     <Link

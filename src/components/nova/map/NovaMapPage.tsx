@@ -36,7 +36,7 @@ export function NovaMapPage() {
 
       {/* Top overlay: the day switcher */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1100] flex flex-col gap-2">
-        <div className="pointer-events-auto border-y border-outline-variant/30 bg-surface/70 py-1.5 backdrop-blur-md">
+        <div className="pointer-events-auto border-y border-outline-variant/30 bg-surface py-1.5">
           <DaySwitcher
             selectedDay={m.selectedDay}
             onSelect={m.setSelectedDay}

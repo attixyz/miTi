@@ -29,12 +29,11 @@ export function getEventStart(event: NDKEvent): dayjs.Dayjs | null {
 
 export function useNovaEvents() {
   const { ndk } = useNdk();
-  const { location, radiusKm } = useFilters();
+  // `selectedDay` lives in FiltersContext so it persists when switching between
+  // /list and /map (see FiltersContext).
+  const { location, radiusKm, selectedDay, setSelectedDay } = useFilters();
   const [allEvents, setAllEvents] = useState<NDKEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState<string>(
-    dayjs().format("YYYY-MM-DD")
-  );
   const [activeTags, setActiveTags] = useState<string[]>([]);
 
   useEffect(() => {
@@ -112,15 +111,6 @@ export function useNovaEvents() {
     };
   }, [ndk]);
 
-  const daysWithEvents = useMemo(() => {
-    const days = new Set<string>();
-    allEvents.forEach((e) => {
-      const start = getEventStart(e);
-      if (start) days.add(start.format("YYYY-MM-DD"));
-    });
-    return days;
-  }, [allEvents]);
-
   const dayEvents = useMemo(() => {
     const selected = dayjs(selectedDay);
     return allEvents.filter((e) => {
@@ -188,7 +178,6 @@ export function useNovaEvents() {
     toggleTag,
     selectedDay,
     setSelectedDay,
-    daysWithEvents,
     totalCount: allEvents.length,
     // Location filter status (consumed by the page for a header line).
     locationActive,

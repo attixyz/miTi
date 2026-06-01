@@ -57,7 +57,7 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
             This event couldn’t be loaded from the relay or cache.
           </p>
           <button
-            onClick={() => router.push("/events")}
+            onClick={() => router.push("/list")}
             className="mt-2 px-4 py-2 rounded-full bg-primary text-on-primary type-body-sm font-medium"
           >
             Browse events

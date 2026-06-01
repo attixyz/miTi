@@ -6,6 +6,7 @@ import { type NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
 import dayjs from "dayjs";
 import { getEventStart } from "@/components/nova/events/useNovaEvents";
 import { useEventCoordinates } from "./useEventCoordinates";
+import { useFilters } from "@/providers/FiltersContext";
 
 /** An event that has been resolved to a coordinate and can be pinned on the map. */
 export interface MapEvent {
@@ -21,16 +22,16 @@ export interface MapEvent {
  * filters to the selected day, then resolves each to a coordinate via the shared
  * {@link useEventCoordinates} hook. The map shows every placeable event
  * worldwide — geographic filtering now lives in the app-wide location filter
- * (see FiltersContext), which only the /events list applies; the map merely
+ * (see FiltersContext), which only the /list view applies; the map merely
  * centers on the chosen coordinates.
  */
 export function useNovaMapEvents() {
   const { ndk } = useNdk();
+  // `selectedDay` lives in FiltersContext so it persists when switching between
+  // /map and /list (see FiltersContext).
+  const { selectedDay, setSelectedDay } = useFilters();
   const [allEvents, setAllEvents] = useState<NDKEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState<string>(
-    dayjs().format("YYYY-MM-DD")
-  );
 
   // ── Fetch upcoming events (mirrors the list view, cache-first) ──────────────
   useEffect(() => {
@@ -107,15 +108,6 @@ export function useNovaMapEvents() {
     };
   }, [ndk]);
 
-  const daysWithEvents = useMemo(() => {
-    const days = new Set<string>();
-    allEvents.forEach((e) => {
-      const start = getEventStart(e);
-      if (start) days.add(start.format("YYYY-MM-DD"));
-    });
-    return days;
-  }, [allEvents]);
-
   const dayEvents = useMemo(() => {
     const selected = dayjs(selectedDay);
     return allEvents.filter((e) => {
@@ -139,7 +131,6 @@ export function useNovaMapEvents() {
     resolving,
     selectedDay,
     setSelectedDay,
-    daysWithEvents,
     dayEventCount: dayEvents.length,
     mappedCount: mapEvents.length,
     mapEvents,

@@ -21,7 +21,7 @@ export function TopBar() {
     >
       <div className="flex h-full items-center gap-2 px-[var(--margin-mobile)] lg:px-6">
         <Link
-          href="/events"
+          href="/list"
           className="shrink-0 text-lg lg:text-xl font-bold text-primary tracking-tight"
         >
           Meetstr

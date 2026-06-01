@@ -14,7 +14,7 @@ const DEFAULT_RADIUS_KM = 25;
 /** Only navigate back to in-app paths (guards against open-redirect via ?from). */
 function safeReturnTarget(from: string | null): string {
   if (from && from.startsWith("/") && !from.startsWith("//")) return from;
-  return "/events";
+  return "/list";
 }
 
 export function NovaSetLocationFilterPage() {

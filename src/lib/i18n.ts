@@ -20,7 +20,9 @@ export function initI18n(serverLang: string) {
         lng: serverLang, // Always use server language for consistency
         fallbackLng: "en",
         supportedLngs: ["en", "de", "es"],
-        debug: process.env.NODE_ENV === "development",
+        // Verbose i18next logging is opt-in (set NEXT_PUBLIC_I18N_DEBUG=true);
+        // otherwise it floods the dev console on every run.
+        debug: process.env.NEXT_PUBLIC_I18N_DEBUG === "true",
         ns: ["translation"],
         defaultNS: "translation",
         interpolation: {

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import dayjs from "dayjs";
 
 /** A point the location filter measures from / centers the map on. */
 export interface FilterLocation {
@@ -27,6 +28,9 @@ interface FiltersContextValue extends LocationFilter {
   /** Commit both location and radius at once (used by the Save button). */
   setFilter: (next: LocationFilter) => void;
   clearFilter: () => void;
+  /** Selected day ("YYYY-MM-DD"), shared by the /list and /map day switchers. */
+  selectedDay: string;
+  setSelectedDay: (day: string) => void;
 }
 
 const FiltersContext = createContext<FiltersContextValue | null>(null);
@@ -58,7 +62,7 @@ function readStored(): LocationFilter | null {
 
 /**
  * App-wide location filter, mounted above the route outlet so it survives
- * navigation between /events, /map, etc. Persisted to localStorage so it also
+ * navigation between /list, /map, etc. Persisted to localStorage so it also
  * survives a reload / new tab. Initialised to no-filter on the first render
  * (to avoid a hydration mismatch) and hydrated from storage post-mount.
  */
@@ -67,6 +71,12 @@ export function FiltersProvider({ children }: { children: ReactNode }) {
     location: null,
     radiusKm: null,
   });
+  // Day selection lives here (not in the per-view hooks) so it survives
+  // navigation between /list and /map. Kept in-memory only — a fresh page
+  // load deliberately resets to today rather than restoring a stale date.
+  const [selectedDay, setSelectedDay] = useState<string>(() =>
+    dayjs().format("YYYY-MM-DD")
+  );
   const [hydrated, setHydrated] = useState(false);
 
   // Hydrate from localStorage once, after mount.
@@ -93,8 +103,10 @@ export function FiltersProvider({ children }: { children: ReactNode }) {
       radiusKm: filter.radiusKm,
       setFilter: (next) => setFilterState(next),
       clearFilter: () => setFilterState({ location: null, radiusKm: null }),
+      selectedDay,
+      setSelectedDay,
     }),
-    [filter]
+    [filter, selectedDay]
   );
 
   return (
