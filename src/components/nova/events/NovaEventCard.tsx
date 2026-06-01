@@ -25,12 +25,14 @@ function getEventHref(event: NDKEvent): string {
 }
 
 function formatEventTime(event: NDKEvent): string {
+  // Date-based events (31922) have no specific time — they run all day.
+  if (event.kind === 31922) {
+    return "All day";
+  }
+
+  // Time-based events (31923) without a start time show nothing.
   const metadata = getEventMetadata(event);
   if (!metadata.start) return "";
-
-  if (event.kind === 31922) {
-    return metadata.start;
-  }
 
   const start = getEventStart(event);
   if (!start) return "";
@@ -48,7 +50,7 @@ export function NovaEventCard({ event }: { event: NDKEvent }) {
   const metadata = useMemo(() => getEventMetadata(event), [event]);
   const href = useMemo(() => getEventHref(event), [event]);
   const timeStr = useMemo(() => formatEventTime(event), [event]);
-  const category = metadata.hashtags[0] as string | undefined;
+  const summary = metadata.shortDescription as string | undefined;
 
   return (
     <Link href={href} className="block group h-full">
@@ -69,19 +71,6 @@ export function NovaEventCard({ event }: { event: NDKEvent }) {
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary-container/40 to-primary/20 flex items-center justify-center">
               <span className="text-4xl opacity-20">📅</span>
-            </div>
-          )}
-          {category && (
-            <div className="absolute top-3 left-3">
-              <span
-                className={cn(
-                  "bg-surface/85 backdrop-blur-sm text-primary",
-                  "text-[11px] font-semibold uppercase tracking-wider",
-                  "px-2.5 py-1 rounded-full border border-outline-variant/20"
-                )}
-              >
-                {category}
-              </span>
             </div>
           )}
         </div>
@@ -111,12 +100,18 @@ export function NovaEventCard({ event }: { event: NDKEvent }) {
               {(metadata.hashtags as string[]).slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 rounded-md bg-secondary-container/20 text-secondary text-[11px] font-semibold capitalize"
+                  className="px-2 py-0.5 rounded-md bg-surface-high text-on-surface-variant text-[11px] font-semibold capitalize"
                 >
                   {tag}
                 </span>
               ))}
             </div>
+          )}
+
+          {summary && (
+            <p className="type-body-sm text-on-surface-variant line-clamp-3">
+              {summary.length > 140 ? `${summary.slice(0, 140)}…` : summary}
+            </p>
           )}
         </div>
       </article>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { nip19 } from "nostr-tools";
 import { ArrowLeft, Share2, CalendarDays, MapPin, Link2, CalendarX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
@@ -12,11 +13,28 @@ import { NovaEventActions } from "./NovaEventActions";
 import { NovaEventMap } from "./NovaEventMap";
 import { NovaEventRsvp } from "./NovaEventRsvp";
 import { NovaAddToCalendar } from "./NovaAddToCalendar";
+import { ExpandableText } from "./ExpandableText";
 
 export function NovaEventDetail({ eventId }: { eventId: string }) {
   const router = useRouter();
   const { event, loading, notFound } = useNovaEvent(eventId);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+
+  // The event's own naddr, used to strip self-referential `r` links.
+  const selfNaddr = useMemo(() => {
+    if (!event?.kind) return null;
+    try {
+      const dTag = event.tags.find((t) => t[0] === "d")?.[1] || "";
+      return nip19.naddrEncode({
+        kind: event.kind,
+        pubkey: event.pubkey,
+        identifier: dTag,
+      });
+    } catch {
+      return null;
+    }
+  }, [event]);
 
   const metadata = useMemo(
     () => (event ? getEventMetadata(event) : null),
@@ -70,7 +88,17 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
   const mainText = metadata ? metadata.content || metadata.description || "" : "";
   const shortDescription = metadata?.shortDescription;
   const hashtags: string[] = metadata?.hashtags ?? [];
-  const references: string[] = metadata?.references ?? [];
+  // Drop empty refs and any self-link pointing back at this event.
+  const references: string[] = (metadata?.references ?? []).filter((r: string) => {
+    if (!r) return false;
+    if (selfNaddr && r.includes(selfNaddr)) return false;
+    if (eventId && r.includes(eventId)) return false;
+    return true;
+  });
+
+  function scrollToMap() {
+    mapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   return (
     <div className="max-w-[1100px] mx-auto px-[var(--margin-mobile)] md:px-[var(--margin-desktop)] py-3 md:py-6">
@@ -122,19 +150,6 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
               <InfoSkeleton />
             ) : (
               <>
-                {hashtags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {hashtags.slice(0, 4).map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 rounded-full bg-surface-high text-on-surface-variant type-label-sm uppercase"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
                 <h1 className="type-headline-lg-mobile md:type-headline-lg text-on-surface">
                   {metadata.title || "Untitled Event"}
                 </h1>
@@ -142,9 +157,11 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
                 <NovaEventHost pubkey={event?.pubkey} />
 
                 {shortDescription && (
-                  <p className="type-body-lg text-on-surface-variant">
-                    {shortDescription}
-                  </p>
+                  <ExpandableText
+                    text={shortDescription}
+                    clampLines={4}
+                    className="type-body-lg text-on-surface-variant"
+                  />
                 )}
 
                 {/* Date + location bento */}
@@ -166,7 +183,12 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
                   </div>
 
                   {metadata.location && (
-                    <div className="rounded-[var(--radius-md)] p-4 bg-surface-low border border-outline-variant/20 flex items-start gap-3">
+                    <button
+                      type="button"
+                      onClick={scrollToMap}
+                      aria-label="Show location on map"
+                      className="text-left rounded-[var(--radius-md)] p-4 bg-surface-low border border-outline-variant/20 flex items-start gap-3 cursor-pointer transition-colors hover:bg-surface-high hover:border-outline-variant/40"
+                    >
                       <div className="p-2.5 rounded-[var(--radius-sm)] bg-secondary-container/40 text-on-secondary-container flex-shrink-0">
                         <MapPin size={20} />
                       </div>
@@ -175,17 +197,20 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
                           {metadata.location}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   )}
                 </div>
 
-                {/* Map (mobile shows it here, below the bento) */}
-                {(metadata.location || metadata.geohash) && (
-                  <div className="md:hidden mt-1">
-                    <NovaEventMap
-                      location={metadata.location}
-                      geohash={metadata.geohash}
-                    />
+                {hashtags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {hashtags.slice(0, 4).map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 rounded-full bg-surface-high text-on-surface-variant type-label-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
 
@@ -224,6 +249,16 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
                     ))}
                   </div>
                 )}
+
+                {/* Map — after the main text and links */}
+                {(metadata.location || metadata.geohash) && (
+                  <div ref={mapRef} className="mt-1 scroll-mt-24">
+                    <NovaEventMap
+                      location={metadata.location}
+                      geohash={metadata.geohash}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -256,16 +291,6 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
               <ActionSkeleton />
             )}
           </div>
-
-          {/* Map (desktop shows it in the sidebar) */}
-          {metadata && (metadata.location || metadata.geohash) && (
-            <div className="hidden md:block">
-              <NovaEventMap
-                location={metadata.location}
-                geohash={metadata.geohash}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

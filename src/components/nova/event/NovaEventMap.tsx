@@ -30,7 +30,7 @@ export function NovaEventMap({ location, geohash }: NovaEventMapProps) {
   return (
     <div className="rounded-[var(--radius-md)] overflow-hidden border border-outline-variant/30 bg-surface-low">
       {/* Map area */}
-      <div className="relative w-full h-48 bg-surface-high">
+      <div className="relative w-full h-[400px] bg-surface-high">
         {embedSrc ? (
           <iframe
             title="event-location-map"

@@ -46,7 +46,7 @@ export function NovaEventHost({ pubkey, noLink }: { pubkey?: string | null; noLi
         )}
       </span>
       <span className="type-body-sm">
-        Hosted by <span className="font-semibold text-primary">{name}</span>
+        Posted by <span className="font-semibold text-primary">{name}</span>
       </span>
     </Tag>
   );
