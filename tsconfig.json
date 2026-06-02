@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ES2022", "DOM"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
     "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
@@ -32,5 +32,5 @@
     "eslint.config.js",
     "src/**/*"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "public/sw.js"]
 }

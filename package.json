@@ -16,6 +16,7 @@
     "@fragaria/address-formatter": "^6.5.0",
     "@nostr-dev-kit/ndk": "^2.18.1",
     "@nostr-dev-kit/ndk-cache-dexie": "^2.6.44",
+    "@serwist/next": "^9.5.11",
     "@tailwindcss/postcss": "^4.3.0",
     "@tanstack/react-query": "^5.75.5",
     "axios": "^1.9.0",
@@ -58,6 +59,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-testing-library": "^6.2.0",
     "prettier": "^3.5.3",
+    "serwist": "^9.5.11",
     "typescript": "^5.8.3"
   }
 }

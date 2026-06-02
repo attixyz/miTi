@@ -1,19 +1,47 @@
 {
-  "name": "",
-  "short_name": "",
+  "name": "Meetstr",
+  "short_name": "Meetstr",
+  "description": "Decentralized event discovery and calendar platform on Nostr",
+  "id": "/",
+  "start_url": "/list",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "lang": "en",
+  "background_color": "#151217",
+  "theme_color": "#151217",
+  "categories": ["social", "productivity", "events"],
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/android-chrome-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
-  "display": "standalone"
+  "shortcuts": [
+    {
+      "name": "New event",
+      "short_name": "New event",
+      "url": "/new-event"
+    },
+    {
+      "name": "Map",
+      "short_name": "Map",
+      "url": "/map"
+    }
+  ]
 }

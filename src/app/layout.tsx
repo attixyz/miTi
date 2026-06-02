@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import ClientProviders from "@/providers/ClientProviders";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,18 @@ export const metadata: Metadata = {
     ],
   },
   manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Meetstr",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#151217" },
+    { media: "(prefers-color-scheme: light)", color: "#fbf8ff" },
+  ],
 };
 
 export default async function RootLayout({
