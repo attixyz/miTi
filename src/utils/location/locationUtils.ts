@@ -62,7 +62,7 @@ async function fetchWithCache(url: string) {
 
   const data = await rateLimiter.add(async () => {
     const response = await fetch(url, {
-      headers: { "User-Agent": "meetstr-nostr" },
+      headers: { "User-Agent": "miti-nostr" },
     });
     if (!response.ok) return null;
     return response.json();

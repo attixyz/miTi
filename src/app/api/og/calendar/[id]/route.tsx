@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { fetchEventById } from "@/utils/nostr/nostrUtils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { getNdk } from "@/lib/ndkClient";
+import { getDisplayHost } from "@/lib/baseUrl";
 
 export const runtime = "edge";
 
@@ -24,11 +25,12 @@ export async function GET(
         ? getEventMetadata(calendarEvent)
         : null;
 
-    const title = metadata?.title || "Calendar on Meetstr";
+    const title = metadata?.title || "Calendar on miTi";
     const description =
       metadata?.summary ||
       calendarEvent?.content ||
       "Discover Nostr calendar events";
+    const siteHost = getDisplayHost(request.headers);
 
     return new ImageResponse(
       (
@@ -77,7 +79,7 @@ export async function GET(
               opacity: 0.8,
             }}
           >
-            meetstr.com
+            {siteHost}
           </div>
         </div>
       ),

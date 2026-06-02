@@ -1,10 +1,10 @@
 module.exports = {
   apps: [
     {
-      name: "meetstr",
+      name: "miti",
       script: "node_modules/next/dist/bin/next",
       args: "start",
-      cwd: "/root/meetstr",
+      cwd: "/root/miti",
       instances: 1,
       exec_mode: "fork",
       env: {

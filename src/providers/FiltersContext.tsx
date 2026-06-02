@@ -35,7 +35,7 @@ interface FiltersContextValue extends LocationFilter {
 
 const FiltersContext = createContext<FiltersContextValue | null>(null);
 
-const STORAGE_KEY = "meetstr:location-filter";
+const STORAGE_KEY = "miti:location-filter";
 
 function readStored(): LocationFilter | null {
   if (typeof window === "undefined") return null;

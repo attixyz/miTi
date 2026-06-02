@@ -1,6 +1,6 @@
 {
-  "name": "Meetstr",
-  "short_name": "Meetstr",
+  "name": "miTi",
+  "short_name": "miTi",
   "description": "Decentralized event discovery and calendar platform on Nostr",
   "id": "/",
   "start_url": "/list",

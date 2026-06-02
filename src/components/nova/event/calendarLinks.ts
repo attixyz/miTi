@@ -91,9 +91,9 @@ export function buildIcs(input: CalendarEventInput): string | null {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Meetstr//NIP-52//EN",
+    "PRODID:-//miTi//NIP-52//EN",
     "BEGIN:VEVENT",
-    `UID:${(input.url || input.title || "meetstr") + "@meetstr"}`,
+    `UID:${(input.url || input.title || "miti") + "@miti"}`,
     `DTSTAMP:${toUtcStamp(Math.floor(Date.now() / 1000))}`,
     dtStart,
     dtEnd,

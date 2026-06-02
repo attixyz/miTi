@@ -5,19 +5,21 @@ import Script from "next/script";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { NovaShell } from "@/components/nova/layout/NovaShell";
+import { getBaseUrlFromEnv } from "@/lib/baseUrl";
 import "@/utils/app-init";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
+const baseUrl = getBaseUrlFromEnv();
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://meetstr.com"),
-  title: "Meetstr",
+  metadataBase: new URL(baseUrl),
+  title: "miTi",
   description: "Decentralized event discovery and calendar platform on Nostr",
-  keywords: ["nostr", "events", "calendar", "meetups", "decentralized", "bitcoin"],
-  authors: [{ name: "Gil Lohner", url: "https://riginode.xyz" }],
-  creator: "Gil Lohner",
-  publisher: "Gil Lohner",
+  keywords: ["nostr", "events", "calendar", "meetups", "decentralized"],
+  authors: [{ name: "Gil Lohner", url: "https://riginode.xyz" }, { name: "Atti" }],
+  publisher: "Atti",
   robots: {
     index: true,
     follow: true,
@@ -32,16 +34,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://meetstr.com",
-    title: "Meetstr - Decentralized Event Discovery",
+    url: baseUrl,
+    title: "miTi - Decentralized Event Discovery",
     description: "Discover and organize events on the decentralized Nostr protocol",
-    siteName: "Meetstr",
+    siteName: "miTi",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Meetstr - Decentralized Event Discovery",
+    title: "miTi - Decentralized Event Discovery",
     description: "Discover and organize events on the decentralized Nostr protocol",
-    creator: "@meetstr",
   },
   icons: {
     icon: [
@@ -58,7 +59,7 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Meetstr",
+    title: "miTi",
     statusBarStyle: "black-translucent",
   },
 };
@@ -86,7 +87,13 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <Script defer data-domain="meetstr.com" src="https://plausible.io/js/script.js" />
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
+          <Script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src="https://plausible.io/js/script.js"
+          />
+        )}
       </head>
       <body suppressHydrationWarning>
         <ClientProviders serverLang={langHeader}>

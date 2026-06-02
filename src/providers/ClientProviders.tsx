@@ -55,7 +55,7 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
     // (the cause of the modal popping up repeatedly after logout).
     const init = async (withSigner: boolean) => {
       const { default: NDKCacheDexie } = await import("@nostr-dev-kit/ndk-cache-dexie");
-      const cacheAdapter = new NDKCacheDexie({ dbName: "meetstr-ndk" }) as any;
+      const cacheAdapter = new NDKCacheDexie({ dbName: "miti-ndk" }) as any;
 
       if (withSigner && typeof window !== "undefined" && window.nostr) {
         const { NDKNip07Signer: Signer } = await import("@nostr-dev-kit/ndk");
@@ -70,7 +70,7 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
       .then(async ({ init: initLogin }) => {
         // Match the modal to our current theme (purple accent, light/dark).
         const prefersDark =
-          (localStorage.getItem("meetstr-theme") ?? "dark") === "dark";
+          (localStorage.getItem("miti-theme") ?? "dark") === "dark";
         initLogin({
           bunkers: "nsec.app,highlighter.com,amber.app",
           theme: "default",

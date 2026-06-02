@@ -1,7 +1,9 @@
 import type { Metadata, ResolvingMetadata } from "next";
+import { headers } from "next/headers";
 import { fetchEventById } from "@/utils/nostr/nostrUtils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { getNdk } from "@/lib/ndkClient";
+import { getBaseUrlFromHeaders } from "@/lib/baseUrl";
 import EventPageClient from "./EventPageClient";
 
 type Props = {
@@ -32,7 +34,7 @@ export async function generateMetadata(
     const title = metadata.title || "Unnamed Event";
     const description =
       metadata.summary || event.content || "A Nostr calendar event.";
-    const eventUrl = `https://meetstr.com/event/${eventId}`;
+    const eventUrl = `${getBaseUrlFromHeaders(await headers())}/event/${eventId}`;
 
     // Extract hashtags and create keywords
     const hashtags = event.tags

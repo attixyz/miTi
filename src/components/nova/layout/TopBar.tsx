@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { AppMenu } from "./AppMenu";
 import { LocationFilterControl } from "@/components/nova/filter/LocationFilterControl";
@@ -22,9 +23,17 @@ export function TopBar() {
       <div className="flex h-full items-center gap-2 px-[var(--margin-mobile)] lg:px-6">
         <Link
           href="/list"
-          className="shrink-0 text-lg lg:text-xl font-bold text-primary tracking-tight"
+          className="flex shrink-0 items-center gap-2 text-lg lg:text-xl font-bold text-primary tracking-tight"
         >
-          Meetstr
+          <Image
+            src="/android-chrome-192x192.png"
+            alt="miTi"
+            width={32}
+            height={32}
+            priority
+            className="h-7 w-7 lg:h-8 lg:w-8 rounded-md"
+          />
+          miTi
         </Link>
         <div className="flex min-w-0 flex-1 justify-center">
           <LocationFilterControl className="w-full max-w-[240px] lg:max-w-[320px]" />
