@@ -50,7 +50,7 @@ jobs:
             fi
             
             # Navigate to project directory
-            cd /root/meetstr
+            cd /root/miti
             
             # Pull latest code
             git pull origin main
@@ -65,11 +65,11 @@ jobs:
             fi
             
             # Check if app is already running in PM2
-            if pm2 list | grep -q meetstr; then
-              echo "Restarting meetstr with PM2..."
-              pm2 restart meetstr
+            if pm2 list | grep -q miti; then
+              echo "Restarting miti with PM2..."
+              pm2 restart miti
             else
-              echo "Starting meetstr with PM2..."
+              echo "Starting miti with PM2..."
               pm2 start ecosystem.config.cjs
             fi
             

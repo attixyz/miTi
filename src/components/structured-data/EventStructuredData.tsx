@@ -5,11 +5,14 @@ import { getEventMetadata } from "@/utils/nostr/eventUtils";
 interface EventStructuredDataProps {
   event: NDKEvent;
   eventId: string;
+  /** App origin (no trailing slash), e.g. from `getBaseUrlFromHeaders`. */
+  baseUrl: string;
 }
 
 export function EventStructuredData({
   event,
   eventId,
+  baseUrl,
 }: EventStructuredDataProps) {
   const metadata = getEventMetadata(event);
 
@@ -18,8 +21,8 @@ export function EventStructuredData({
     "@type": "Event",
     name: metadata.title || "Unnamed Event",
     description: metadata.summary || event.content || "",
-    url: `https://meetstr.com/event/${eventId}`,
-    image: metadata.image || `https://meetstr.com/api/og/event/${eventId}`,
+    url: `${baseUrl}/event/${eventId}`,
+    image: metadata.image || `${baseUrl}/api/og/event/${eventId}`,
     startDate: metadata.start
       ? new Date(parseInt(metadata.start) * 1000).toISOString()
       : undefined,
@@ -35,7 +38,7 @@ export function EventStructuredData({
     organizer: {
       "@type": "Organization",
       name: "miTi",
-      url: "https://meetstr.com",
+      url: baseUrl,
     },
     offers: {
       "@type": "Offer",

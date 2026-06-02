@@ -164,7 +164,7 @@ src/
 
 | Service | Usage | Where |
 |---|---|---|
-| `relay.damus.io`, `relay.nostr.band`, `nos.lol`, `nostr.wine` | Nostr relays | `ndkClient.ts`, `ClientProviders.tsx` |
+| `relay.damus.io`, `nos.lol`, `nostr.wine` | Nostr relays | `ndkClient.ts`, `ClientProviders.tsx` |
 | Nominatim (OpenStreetMap) | Geocoding: location string → coords | `locationUtils.ts`, `geocodeCache.ts`, `LocationSearchInput` |
 | Overpass API | OSM tags (Bitcoin payment info) | `osmTags.ts` |
 | `blossom.nostr.build` | Image uploads (Blossom protocol) | `useBlossomUpload.ts` |
@@ -173,7 +173,7 @@ src/
 
 ## Architecture
 
-**Almost entirely client-side.** NDK opens WebSockets from the browser directly to the relays (relay.damus.io, relay.nostr.band, nos.lol, nostr.wine).
+**Almost entirely client-side.** NDK opens WebSockets from the browser directly to the relays (relay.damus.io, nos.lol, nostr.wine).
 
 `src/middleware.ts` is **not** Nostr-related — it only handles i18n cookie/header detection.
 

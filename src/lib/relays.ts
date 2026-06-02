@@ -11,7 +11,6 @@
 // stays safe to import from a Client Component and a server route handler alike.
 export const DEFAULT_RELAYS = [
   "wss://relay.damus.io",
-  "wss://relay.nostr.band",
   "wss://nos.lol",
   "wss://nostr.wine",
 ];

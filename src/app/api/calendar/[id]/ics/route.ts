@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getNdk } from "@/lib/ndkClient";
 import { fetchCalendarEvents, fetchEventById } from "@/utils/nostr/nostrUtils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
+import { getBaseUrlFromHeaders, ICS_UID_DOMAIN } from "@/lib/baseUrl";
 
 export async function GET(
   req: NextRequest,
@@ -30,8 +31,10 @@ export async function GET(
   const { upcoming, past } = await fetchCalendarEvents(ndk, calendarEvent);
   const allEvents = [...upcoming, ...past];
 
-  // Generate ICS content
-  const icsContent = generateICSContent(calendarMetadata, allEvents);
+  // Generate ICS content. The clickable `URL:` field tracks the host the feed
+  // was fetched from; the `UID` namespace stays a fixed constant (see below).
+  const baseUrl = getBaseUrlFromHeaders(req.headers);
+  const icsContent = generateICSContent(calendarMetadata, allEvents, baseUrl);
 
   return new NextResponse(icsContent, {
     headers: {
@@ -43,7 +46,11 @@ export async function GET(
   });
 }
 
-function generateICSContent(calendarMetadata: any, events: any[]): string {
+function generateICSContent(
+  calendarMetadata: any,
+  events: any[],
+  baseUrl: string
+): string {
   const now = new Date();
   const formatDate = (timestamp: string | number | undefined | null) => {
     if (
@@ -98,13 +105,15 @@ function generateICSContent(calendarMetadata: any, events: any[]): string {
 
     ics.push(
       "BEGIN:VEVENT",
-      `UID:${event.id}@meetstr.com`,
+      // UID namespace is a FIXED constant — must stay stable across hosts so
+      // re-downloads update events instead of duplicating them (RFC 5545).
+      `UID:${event.id}@${ICS_UID_DOMAIN}`,
       `DTSTART:${startDate}`,
       `DTEND:${endDate}`,
       `SUMMARY:${escapeText(metadata.title || "Untitled Event")}`,
       `DESCRIPTION:${escapeText(metadata.summary || "")}`,
       metadata.location ? `LOCATION:${escapeText(metadata.location)}` : "",
-      `URL:https://meetstr.com/event/${event.id}`,
+      `URL:${baseUrl}/event/${event.id}`,
       `CREATED:${formatDate(event.created_at)}`,
       `LAST-MODIFIED:${formatDate(event.created_at)}`,
       "END:VEVENT"
