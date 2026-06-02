@@ -1,5 +1,5 @@
 {
-  "appName": "Meetstr",
+  "appName": "miTi",
   "startpage": {
     "popularCalendars": "Popular Calendars"
   },
@@ -39,7 +39,7 @@
       "description": "Calendar Description",
       "calendarReferences": "Calendar Event References",
       "addReference": "Add calendar event reference...",
-      "addReferenceNaddr": "Paste event naddr or meetstr URL"
+      "addReferenceNaddr": "Paste event naddr or miTi URL"
     },
     "submit": "Create Calendar",
     "success": "Calendar created successfully!",

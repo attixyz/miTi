@@ -1,5 +1,5 @@
 {
-  "appName": "Meetstr",
+  "appName": "miTi",
   "startpage": {
     "popularCalendars": "Beliebte Kalender"
   },
@@ -154,7 +154,7 @@
     "error": "Kalender nicht erstellen. \nBitte versuchen Sie es erneut.",
     "form": {
       "addReference": "Kalenderereignis hinzufügen ...",
-      "addReferenceNaddr": "Event-Naddr oder Meetstr-URL einfügen",
+      "addReferenceNaddr": "Event-Naddr oder miTi-URL einfügen",
       "calendarReferences": "Kalenderereignise",
       "description": "Kalenderbeschreibung",
       "title": "Kalendertitel"

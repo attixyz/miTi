@@ -1,4 +1,4 @@
-# Meetstr
+# miTi
 
 NIP-52 Nostr calendar event discovery and creation app.
 

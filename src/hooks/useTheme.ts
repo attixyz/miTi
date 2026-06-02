@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
-const STORAGE_KEY = "meetstr-theme";
+const STORAGE_KEY = "miti-theme";
 const DEFAULT_THEME: Theme = "dark";
 
 export function useTheme() {

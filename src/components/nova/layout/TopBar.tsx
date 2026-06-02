@@ -24,7 +24,7 @@ export function TopBar() {
           href="/list"
           className="shrink-0 text-lg lg:text-xl font-bold text-primary tracking-tight"
         >
-          Meetstr
+          miTi
         </Link>
         <div className="flex min-w-0 flex-1 justify-center">
           <LocationFilterControl className="w-full max-w-[240px] lg:max-w-[320px]" />

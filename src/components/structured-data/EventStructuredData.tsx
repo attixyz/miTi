@@ -34,7 +34,7 @@ export function EventStructuredData({
       : undefined,
     organizer: {
       "@type": "Organization",
-      name: "Meetstr",
+      name: "miTi",
       url: "https://meetstr.com",
     },
     offers: {

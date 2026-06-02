@@ -12,7 +12,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://meetstr.com"),
-  title: "Meetstr",
+  title: "miTi",
   description: "Decentralized event discovery and calendar platform on Nostr",
   keywords: ["nostr", "events", "calendar", "meetups", "decentralized", "bitcoin"],
   authors: [{ name: "Gil Lohner", url: "https://riginode.xyz" }],
@@ -33,13 +33,13 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://meetstr.com",
-    title: "Meetstr - Decentralized Event Discovery",
+    title: "miTi - Decentralized Event Discovery",
     description: "Discover and organize events on the decentralized Nostr protocol",
-    siteName: "Meetstr",
+    siteName: "miTi",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Meetstr - Decentralized Event Discovery",
+    title: "miTi - Decentralized Event Discovery",
     description: "Discover and organize events on the decentralized Nostr protocol",
     creator: "@meetstr",
   },

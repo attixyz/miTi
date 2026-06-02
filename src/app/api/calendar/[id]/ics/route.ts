@@ -36,7 +36,7 @@ export async function GET(
   return new NextResponse(icsContent, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${calendarMetadata.title || "meetstr-calendar"}.ics"`,
+      "Content-Disposition": `attachment; filename="${calendarMetadata.title || "miTi-calendar"}.ics"`,
       "Cache-Control": "no-cache, must-revalidate",
       "X-Published-TTL": "PT1H", // Refresh every hour
     },
@@ -70,10 +70,10 @@ function generateICSContent(calendarMetadata: any, events: any[]): string {
   let ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Meetstr//Calendar//EN",
+    "PRODID:-//miTi//Calendar//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeText(calendarMetadata.title || "Meetstr Calendar")}`,
+    `X-WR-CALNAME:${escapeText(calendarMetadata.title || "miTi Calendar")}`,
     `X-WR-CALDESC:${escapeText(calendarMetadata.summary || "")}`,
     "X-WR-TIMEZONE:UTC",
     `LAST-MODIFIED:${formatDate(now.getTime() / 1000)}`,

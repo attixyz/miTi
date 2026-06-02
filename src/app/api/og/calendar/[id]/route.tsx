@@ -24,7 +24,7 @@ export async function GET(
         ? getEventMetadata(calendarEvent)
         : null;
 
-    const title = metadata?.title || "Calendar on Meetstr";
+    const title = metadata?.title || "Calendar on miTi";
     const description =
       metadata?.summary ||
       calendarEvent?.content ||

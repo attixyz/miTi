@@ -29,7 +29,7 @@ class GeoCacheDB extends Dexie {
   geocodes!: Table<GeocodeRecord, string>;
 
   constructor() {
-    super("meetstr-geo");
+    super("miti-geo");
     this.version(1).stores({ geocodes: "key" });
   }
 }

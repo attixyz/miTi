@@ -22,7 +22,7 @@ export async function GET(
         ? getEventMetadata(event)
         : null;
 
-    const title = metadata?.title || "Event on Meetstr";
+    const title = metadata?.title || "Event on miTi";
     const description =
       metadata?.summary || event?.content || "Discover Nostr calendar events";
     const location = metadata?.location || "";

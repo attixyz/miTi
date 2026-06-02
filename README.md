@@ -1,8 +1,6 @@
-![Meetstr](https://socialify.git.ci/gillohner/meetstr/image?font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Dark)
+# miTi
 
-# Meetstr
-
-Meetstr is an open-source web nostr client for discovering, viewing, and managing NIP-52 based calendars. It provides a modern, React-based interface for browsing Nostr event calendars, viewing event details, and exploring upcoming and past events.
+miTi is an open-source web nostr client for discovering, viewing, and managing NIP-52 based calendars. It provides a modern, React-based interface for browsing Nostr event calendars, viewing event details, and exploring upcoming and past events.
 
 ## Features
 
@@ -17,7 +15,7 @@ Requirements:
 
 - Node.js v22
 
-Install and run Meetstr with npm:
+Install and run miTi with npm:
 
 ```bash
 npm install
