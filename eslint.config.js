@@ -6,6 +6,10 @@ export default [
   {
     ignores: ["**/node_modules/**", ".next/**", "dist/**", "out/**"],
   },
+  // Next.js recommended + Core Web Vitals. Registering the plugin via its own
+  // flat config is what lets `next build` detect it (silences the
+  // "Next.js plugin was not detected" warning).
+  next.flatConfig.coreWebVitals,
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
@@ -18,12 +22,15 @@ export default [
       },
     },
     plugins: {
-      "@next/next": next,
       "@typescript-eslint": tseslint,
     },
     rules: {
       "react/react-in-jsx-scope": "off",
       "@typescript-eslint/consistent-type-imports": "error",
+      // Cover images and avatars come from arbitrary remote hosts (Blossom,
+      // external URLs) that next/image isn't configured to optimize, so plain
+      // <img> is intentional throughout the nova components.
+      "@next/next/no-img-element": "off",
     },
   },
 ];
