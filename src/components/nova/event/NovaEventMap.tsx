@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Bitcoin, Zap, Link2, Nfc, ExternalLink } from "lucide-react";
 import { useLocationInfo } from "@/hooks/useLocationInfo";
 
@@ -7,6 +8,15 @@ interface NovaEventMapProps {
   location?: string | null;
   geohash?: string | null;
 }
+
+// Leaflet touches `window`, so the map only loads in the browser.
+const EventLocationMap = dynamic(
+  () => import("./EventLocationMap").then((m) => m.EventLocationMap),
+  {
+    ssr: false,
+    loading: () => <div className="w-full h-full animate-pulse bg-surface-high" />,
+  }
+);
 
 /**
  * Progressive location card: the location string renders instantly (it comes
@@ -17,13 +27,6 @@ export function NovaEventMap({ location, geohash }: NovaEventMapProps) {
   const { data, isLoading } = useLocationInfo(location, geohash);
 
   const coords = data?.coords;
-  const embedSrc = coords
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${
-        coords.longitude - 0.01
-      },${coords.latitude - 0.01},${coords.longitude + 0.01},${
-        coords.latitude + 0.01
-      }&layer=mapnik&marker=${coords.latitude},${coords.longitude}`
-    : null;
 
   const pm = data?.paymentMethods;
 
@@ -31,13 +34,8 @@ export function NovaEventMap({ location, geohash }: NovaEventMapProps) {
     <div className="rounded-[var(--radius-md)] overflow-hidden border border-outline-variant/30 bg-surface-low">
       {/* Map area */}
       <div className="relative w-full h-[400px] bg-surface-high">
-        {embedSrc ? (
-          <iframe
-            title="event-location-map"
-            src={embedSrc}
-            className="w-full h-full border-0"
-            loading="lazy"
-          />
+        {coords ? (
+          <EventLocationMap lat={coords.latitude} lon={coords.longitude} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             {isLoading ? (

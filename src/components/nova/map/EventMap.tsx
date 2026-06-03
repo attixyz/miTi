@@ -26,31 +26,7 @@ import {
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { getEventStart } from "@/components/nova/events/useNovaEvents";
 import { useTheme } from "@/hooks/useTheme";
-
-const CARTO_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
-
-const STADIA_ATTRIBUTION =
-  '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-
-const THEME = {
-  light: {
-    tiles: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: CARTO_ATTRIBUTION,
-    pin: "#7c2db1",
-    ring: "#fbf8ff",
-    radius: "#7c2db1",
-    user: "#00677f",
-  },
-  dark: {
-    tiles: "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
-    attribution: STADIA_ATTRIBUTION,
-    pin: "#e9b3ff",
-    ring: "#1e1a20",
-    radius: "#e9b3ff",
-    user: "#4cd6ff",
-  },
-} as const;
+import { MAP_THEME } from "./mapTheme";
 
 function eventHref(event: NDKEvent): string {
   try {
@@ -210,7 +186,7 @@ export function EventMap({
   fitKey,
 }: EventMapProps) {
   const { theme } = useTheme();
-  const c = THEME[theme];
+  const c = MAP_THEME[theme];
   const { getMapView, setMapView } = useFilters();
   // Snapshot the persisted camera once, at mount: where the user last left the
   // map, or — via FiltersContext — the active filter location. The tracker
