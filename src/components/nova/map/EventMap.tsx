@@ -148,6 +148,53 @@ function MapController({
   return null;
 }
 
+/**
+ * The day's events as circle pins. Clicking one re-centers the map on it
+ * (keeping the current zoom) and opens its popup anchored at the circle's
+ * center — Leaflet otherwise anchors a path's popup at the exact click point.
+ */
+function EventMarkers({
+  events,
+  ring,
+  pin,
+}: {
+  events: MapEvent[];
+  ring: string;
+  pin: string;
+}) {
+  const map = useMap();
+  return (
+    <>
+      {events.map((me) => {
+        const center: [number, number] = [me.lat, me.lon];
+        return (
+          <CircleMarker
+            key={me.event.id}
+            center={center}
+            radius={11}
+            pathOptions={{
+              color: ring,
+              weight: 2,
+              fillColor: pin,
+              fillOpacity: 1,
+            }}
+            eventHandlers={{
+              click: () => map.panTo(center),
+              // Re-anchor the popup at the circle center; autoPan is off on the
+              // Popup since panTo above already centers it in view.
+              popupopen: (e) => e.popup.setLatLng(center),
+            }}
+          >
+            <Popup autoPan={false}>
+              <MapPopupCard event={me.event} />
+            </Popup>
+          </CircleMarker>
+        );
+      })}
+    </>
+  );
+}
+
 interface EventMapProps {
   events: MapEvent[];
   center: FilterLocation | null;
@@ -198,23 +245,7 @@ export function EventMap({
       />
       <MapViewTracker onChange={setMapView} />
 
-      {events.map((me) => (
-        <CircleMarker
-          key={me.event.id}
-          center={[me.lat, me.lon]}
-          radius={11}
-          pathOptions={{
-            color: c.ring,
-            weight: 2,
-            fillColor: c.pin,
-            fillOpacity: 1,
-          }}
-        >
-          <Popup>
-            <MapPopupCard event={me.event} />
-          </Popup>
-        </CircleMarker>
-      ))}
+      <EventMarkers events={events} ring={c.ring} pin={c.pin} />
     </MapContainer>
   );
 }
