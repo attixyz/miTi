@@ -2,9 +2,11 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -16,6 +18,13 @@ export interface FilterLocation {
   lon: number;
   /** Nominatim display name, or "Near me" for browser geolocation. */
   label: string;
+}
+
+/** The /map camera: where it's centered and how far it's zoomed. */
+export interface MapView {
+  /** [lat, lon] */
+  center: [number, number];
+  zoom: number;
 }
 
 export interface LocationFilter {
@@ -31,11 +40,27 @@ interface FiltersContextValue extends LocationFilter {
   /** Selected day ("YYYY-MM-DD"), shared by the /list and /map day switchers. */
   selectedDay: string;
   setSelectedDay: (day: string) => void;
+  /**
+   * Last /map camera, kept in-memory so leaving the map (e.g. to /event/[id])
+   * and returning restores the same view — and so a light/dark toggle that
+   * re-tiles the map keeps its place. Ref-backed: read once when the map mounts
+   * and written on every pan, so panning never re-renders the app. A fresh page
+   * load resets it to `null` (the map then auto-fits, like before).
+   */
+  getMapView: () => MapView | null;
+  setMapView: (view: MapView | null) => void;
 }
 
 const FiltersContext = createContext<FiltersContextValue | null>(null);
 
 const STORAGE_KEY = "miti:location-filter";
+/** Zoom the /map opens at when it's aimed at a filter location. */
+const FILTER_ZOOM = 14;
+
+/** The camera a filter location implies, or `null` ("Anywhere") to fit pins. */
+function cameraForLocation(loc: FilterLocation | null): MapView | null {
+  return loc ? { center: [loc.lat, loc.lon], zoom: FILTER_ZOOM } : null;
+}
 
 function readStored(): LocationFilter | null {
   if (typeof window === "undefined") return null;
@@ -77,12 +102,24 @@ export function FiltersProvider({ children }: { children: ReactNode }) {
   const [selectedDay, setSelectedDay] = useState<string>(() =>
     dayjs().format("YYYY-MM-DD")
   );
+  // Map camera. A ref, not state: only the map reads it (once, at mount), so we
+  // skip the re-render that writing on every pan would otherwise cause.
+  const mapViewRef = useRef<MapView | null>(null);
+  const getMapView = useCallback(() => mapViewRef.current, []);
+  const setMapView = useCallback((view: MapView | null) => {
+    mapViewRef.current = view;
+  }, []);
   const [hydrated, setHydrated] = useState(false);
 
   // Hydrate from localStorage once, after mount.
   useEffect(() => {
     const stored = readStored();
-    if (stored) setFilterState(stored);
+    if (stored) {
+      setFilterState(stored);
+      // Seed the map camera from a persisted filter so the first /map visit of
+      // a session opens at the filtered place, not the default world view.
+      mapViewRef.current = cameraForLocation(stored.location);
+    }
     setHydrated(true);
   }, []);
 
@@ -101,12 +138,24 @@ export function FiltersProvider({ children }: { children: ReactNode }) {
     () => ({
       location: filter.location,
       radiusKm: filter.radiusKm,
-      setFilter: (next) => setFilterState(next),
-      clearFilter: () => setFilterState({ location: null, radiusKm: null }),
+      setFilter: (next) => {
+        setFilterState(next);
+        // Picking a new place/radius (or "Anywhere") is the *only* thing that
+        // re-aims the map: a fresh /map mount opens at this camera. Plain
+        // navigation (event → back) leaves it untouched, so the map restores
+        // wherever the user last panned to. "Anywhere" → null → re-fit pins.
+        mapViewRef.current = cameraForLocation(next.location);
+      },
+      clearFilter: () => {
+        setFilterState({ location: null, radiusKm: null });
+        mapViewRef.current = null;
+      },
       selectedDay,
       setSelectedDay,
+      getMapView,
+      setMapView,
     }),
-    [filter, selectedDay]
+    [filter, selectedDay, getMapView, setMapView]
   );
 
   return (

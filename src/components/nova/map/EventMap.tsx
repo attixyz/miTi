@@ -9,6 +9,7 @@ import {
   CircleMarker,
   Popup,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import Link from "next/link";
@@ -17,7 +18,11 @@ import { Clock, MapPin, ArrowRight } from "lucide-react";
 import dayjs from "dayjs";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
 import type { MapEvent } from "./useNovaMapEvents";
-import type { FilterLocation } from "@/providers/FiltersContext";
+import {
+  useFilters,
+  type FilterLocation,
+  type MapView,
+} from "@/providers/FiltersContext";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { getEventStart } from "@/components/nova/events/useNovaEvents";
 import { useTheme } from "@/hooks/useTheme";
@@ -46,9 +51,6 @@ const THEME = {
     user: "#4cd6ff",
   },
 } as const;
-
-/** Zoom used when the map centers on the filter location. */
-const FILTER_ZOOM = 14;
 
 function eventHref(event: NDKEvent): string {
   try {
@@ -85,28 +87,45 @@ function MapReady({ onReady }: { onReady?: (map: LeafletMap) => void }) {
 }
 
 /**
- * Centers on the filter location (zoom 11) whenever it's set; otherwise fits all
- * of the day's pins into view once per day (keyed by `fitKey`).
+ * Persists the camera (center + zoom) to the shared in-memory store after every
+ * pan/zoom — `moveend` fires for both — so navigating away and back restores
+ * this exact view. `setMapView` is ref-backed, so this never re-renders.
+ */
+function MapViewTracker({ onChange }: { onChange: (view: MapView) => void }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const { lat, lng } = map.getCenter();
+      onChange({ center: [lat, lng], zoom: map.getZoom() });
+    },
+  });
+  return null;
+}
+
+/**
+ * Fits all of the day's pins into view once per day (keyed by `fitKey`). The
+ * camera itself is restored from the persisted view (set on mount by EventMap),
+ * which is what aims the map at a filter location — so this only fits when no
+ * filter is active and no view was restored for the current day. A later day
+ * change still refits.
  */
 function MapController({
   center,
   events,
   fitKey,
+  initialView,
 }: {
   center: FilterLocation | null;
   events: MapEvent[];
   fitKey: string;
+  initialView: MapView | null;
 }) {
   const map = useMap();
-  const fittedKeyRef = useRef<string | null>(null);
+  // Seed as already-fitted for the mount-time day so a restored view (from
+  // navigation or a filter) isn't overridden; a later day change still refits.
+  const fittedKeyRef = useRef<string | null>(initialView ? fitKey : null);
 
   useEffect(() => {
-    if (!center) return;
-    map.flyTo([center.lat, center.lon], FILTER_ZOOM, { duration: 0.8 });
-  }, [center, map]);
-
-  useEffect(() => {
-    if (center) return; // filter-driven center wins
+    if (center) return; // a filter is active → map opens at the restored camera
     if (fittedKeyRef.current === fitKey) return;
     if (events.length === 0) return;
     fittedKeyRef.current = fitKey;
@@ -145,11 +164,18 @@ export function EventMap({
 }: EventMapProps) {
   const { theme } = useTheme();
   const c = THEME[theme];
+  const { getMapView, setMapView } = useFilters();
+  // Snapshot the persisted camera once, at mount: where the user last left the
+  // map, or — via FiltersContext — the active filter location. The tracker
+  // below keeps writing as the user pans, so reading live would feed those
+  // updates back into the initial position; this freezes it. `null` (no filter,
+  // never panned) → the default world view + auto-fit, like before.
+  const initialView = useRef<MapView | null>(getMapView()).current;
 
   return (
     <MapContainer
-      center={[20, 0]}
-      zoom={2}
+      center={initialView ? initialView.center : [20, 0]}
+      zoom={initialView ? initialView.zoom : 2}
       minZoom={2}
       zoomControl={false}
       worldCopyJump
@@ -164,7 +190,13 @@ export function EventMap({
       />
 
       <MapReady onReady={onMapReady} />
-      <MapController center={center} events={events} fitKey={fitKey} />
+      <MapController
+        center={center}
+        events={events}
+        fitKey={fitKey}
+        initialView={initialView}
+      />
+      <MapViewTracker onChange={setMapView} />
 
       {events.map((me) => (
         <CircleMarker
