@@ -7,6 +7,7 @@ import {
   ShieldAlert,
   CalendarRange,
   Server,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,7 +49,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     header: "Settings",
     items: [
-      { href: "#", icon: Server, label: "Relays" },
+      { href: "#",      icon: Server, label: "Relays" },
+      { href: "/about", icon: Info,   label: "About" },
     ],
   },
 ];

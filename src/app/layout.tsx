@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "miTi",
   description: "Decentralized event discovery and calendar platform on Nostr",
   keywords: ["nostr", "events", "calendar", "meetups", "decentralized"],
-  authors: [{ name: "Gil Lohner", url: "https://riginode.xyz" }, { name: "Atti" }],
+  authors: [{ name: "Atti", url: "https://github.com/attixyz" }, { name: "Gil Lohner", url: "https://riginode.xyz" }],
   publisher: "Atti",
   robots: {
     index: true,
