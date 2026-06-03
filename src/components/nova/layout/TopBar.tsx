@@ -15,7 +15,7 @@ export function TopBar() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full h-16",
+        "sticky top-0 z-[1200] w-full h-16",
         "bg-surface",
         "border-b border-outline-variant/30"
       )}

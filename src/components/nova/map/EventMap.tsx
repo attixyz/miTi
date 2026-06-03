@@ -25,19 +25,22 @@ import { useTheme } from "@/hooks/useTheme";
 const CARTO_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
+const STADIA_ATTRIBUTION =
+  '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
 const THEME = {
   light: {
     tiles: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    attribution: CARTO_ATTRIBUTION,
     pin: "#7c2db1",
-    pinSelected: "#4e0b6d",
     ring: "#fbf8ff",
     radius: "#7c2db1",
     user: "#00677f",
   },
   dark: {
-    tiles: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    tiles: "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+    attribution: STADIA_ATTRIBUTION,
     pin: "#e9b3ff",
-    pinSelected: "#ffffff",
     ring: "#1e1a20",
     radius: "#e9b3ff",
     user: "#4cd6ff",
@@ -129,8 +132,6 @@ function MapController({
 interface EventMapProps {
   events: MapEvent[];
   center: FilterLocation | null;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
   onMapReady?: (map: LeafletMap) => void;
   /** Re-fit the view when this changes (e.g. the selected day). */
   fitKey: string;
@@ -139,8 +140,6 @@ interface EventMapProps {
 export function EventMap({
   events,
   center,
-  selectedId,
-  onSelect,
   onMapReady,
   fitKey,
 }: EventMapProps) {
@@ -159,7 +158,7 @@ export function EventMap({
       <TileLayer
         key={theme}
         url={c.tiles}
-        attribution={CARTO_ATTRIBUTION}
+        attribution={c.attribution}
         subdomains="abcd"
         maxZoom={20}
       />
@@ -167,27 +166,23 @@ export function EventMap({
       <MapReady onReady={onMapReady} />
       <MapController center={center} events={events} fitKey={fitKey} />
 
-      {events.map((me) => {
-        const selected = me.event.id === selectedId;
-        return (
-          <CircleMarker
-            key={me.event.id}
-            center={[me.lat, me.lon]}
-            radius={selected ? 10 : 7}
-            pathOptions={{
-              color: c.ring,
-              weight: 2,
-              fillColor: selected ? c.pinSelected : c.pin,
-              fillOpacity: 1,
-            }}
-            eventHandlers={{ click: () => onSelect(me.event.id) }}
-          >
-            <Popup>
-              <MapPopupCard event={me.event} />
-            </Popup>
-          </CircleMarker>
-        );
-      })}
+      {events.map((me) => (
+        <CircleMarker
+          key={me.event.id}
+          center={[me.lat, me.lon]}
+          radius={11}
+          pathOptions={{
+            color: c.ring,
+            weight: 2,
+            fillColor: c.pin,
+            fillOpacity: 1,
+          }}
+        >
+          <Popup>
+            <MapPopupCard event={me.event} />
+          </Popup>
+        </CircleMarker>
+      ))}
     </MapContainer>
   );
 }

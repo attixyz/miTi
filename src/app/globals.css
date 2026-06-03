@@ -310,22 +310,26 @@
 
 /* ─── Leaflet (map view) theme overrides ───────────────────────────────────── */
 /* Re-skin the default popup/attribution chrome to the nova surface tokens so   */
-/* the map blends with both light and dark themes.                              */
-.leaflet-container {
+/* the map blends with both light and dark themes. Selectors are scoped under   */
+/* [data-theme] purely to out-specify Leaflet's own single-class defaults —     */
+/* leaflet.css ships with the dynamically-imported map chunk and is injected    */
+/* after globals.css, so an equal-specificity rule (e.g. its `background:white`) */
+/* would otherwise win and leave popups white in dark mode.                     */
+[data-theme] .leaflet-container {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   background: var(--surface-container-low);
 }
-.leaflet-popup-content-wrapper {
+[data-theme] .leaflet-popup-content-wrapper {
   background: var(--surface);
   color: var(--on-surface);
   border: 1px solid color-mix(in srgb, var(--outline-variant) 50%, transparent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-overlay);
 }
-.leaflet-popup-content {
+[data-theme] .leaflet-popup-content {
   margin: 12px 14px;
 }
-.leaflet-popup-tip {
+[data-theme] .leaflet-popup-tip {
   background: var(--surface);
   box-shadow: var(--shadow-overlay);
 }

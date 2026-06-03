@@ -19,7 +19,6 @@ export function NovaMapPage() {
   const m = useNovaMapEvents();
   const { location } = useFilters();
   const [map, setMap] = useState<LeafletMap | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // The negative bottom margin cancels NovaShell's mobile `pb-28` so the map
   // fills the viewport beneath the top bar (the floating nav overlays it).
@@ -28,8 +27,6 @@ export function NovaMapPage() {
       <EventMap
         events={m.mapEvents}
         center={location}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
         onMapReady={setMap}
         fitKey={m.selectedDay}
       />
