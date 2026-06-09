@@ -84,21 +84,44 @@ export async function getLocationInfo(
   try {
     let osmResult: any = null;
 
-    if (locationName) {
+    // Geohash-first: decode directly for exact venue coordinates (no network,
+    // venue-precise) — same resolution order the /map view uses. The reverse
+    // lookup only enriches payment tags / map links / address.
+    let geohashCoords: GeolocationCoordinates | null = null;
+    if (geohash) {
+      const decoded = decodeGeohash(geohash);
+      geohashCoords = {
+        latitude: decoded.latitude,
+        longitude: decoded.longitude,
+      };
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${decoded.latitude}&lon=${decoded.longitude}&format=json`;
+      osmResult = await fetchWithCache(url);
+    }
+
+    // Fall back to geocoding the location string when there's no geohash (or
+    // its reverse lookup returned nothing to enrich with).
+    if (!osmResult && locationName) {
       const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationName)}&format=json&limit=1`;
       const results = await fetchWithCache(url);
       osmResult = results?.[0];
     }
 
-    if (!osmResult && geohash) {
-      const decoded = decodeGeohash(geohash);
-      const url = `https://nominatim.openstreetmap.org/reverse?lat=${decoded.latitude}&lon=${decoded.longitude}&format=json`;
-      osmResult = await fetchWithCache(url);
-    }
+    // Coordinates: the geohash is authoritative (venue precision); otherwise use
+    // whatever Nominatim resolved from the location string.
+    const coords: GeolocationCoordinates | null =
+      geohashCoords ??
+      (osmResult
+        ? {
+            latitude: parseFloat(osmResult.lat),
+            longitude: parseFloat(osmResult.lon),
+          }
+        : null);
 
-    if (!osmResult) return null;
+    if (!coords) return null;
 
-    const osmTags = await fetchOsmTags(osmResult.osm_type, osmResult.osm_id);
+    const osmTags = osmResult
+      ? await fetchOsmTags(osmResult.osm_type, osmResult.osm_id)
+      : {};
 
     const paymentMethods = {
       acceptsBitcoin: osmTags["currency:XBT"] === "yes",
@@ -107,42 +130,41 @@ export async function getLocationInfo(
       contactless: osmTags["payment:lightning_contactless"] === "yes",
     };
 
-    const coords = {
-      latitude: parseFloat(osmResult.lat),
-      longitude: parseFloat(osmResult.lon),
+    const mapLinks: Record<string, string> = {
+      google: `https://www.google.com/maps/search/?api=1&query=${coords.latitude},${coords.longitude}${osmResult?.display_name ? `,${encodeURIComponent(osmResult.display_name)}` : ""}`,
+      apple: `https://maps.apple.com/?${osmResult?.name ? `q=${encodeURIComponent(osmResult.name)}&` : ""}ll=${coords.latitude},${coords.longitude}`,
     };
-
-    const mapLinks = {
-      osm: `https://openstreetmap.org/${osmResult.osm_type}/${osmResult.osm_id}`,
-      google: `https://www.google.com/maps/search/?api=1&query=${coords.latitude},${coords.longitude},${encodeURIComponent(osmResult.display_name || "")}`,
-      apple: `https://maps.apple.com/?q=${encodeURIComponent(osmResult.name || "")}&ll=${coords.latitude},${coords.longitude}`,
-      ...(paymentMethods.acceptsBitcoin && {
-        btcmap: `https://btcmap.org/merchant/${osmResult.osm_type}:${osmResult.osm_id}`,
-      }),
-    };
+    if (osmResult) {
+      mapLinks.osm = `https://openstreetmap.org/${osmResult.osm_type}/${osmResult.osm_id}`;
+      if (paymentMethods.acceptsBitcoin) {
+        mapLinks.btcmap = `https://btcmap.org/merchant/${osmResult.osm_type}:${osmResult.osm_id}`;
+      }
+    }
 
     const addressComponents = {
       houseNumber:
-        osmTags["addr:housenumber"] || osmResult.address?.house_number,
-      road: osmTags["addr:street"] || osmResult.address?.road,
-      city: osmTags["addr:city"] || osmResult.address?.city,
-      postcode: osmTags["addr:postcode"] || osmResult.address?.postcode,
-      state: osmTags["addr:state"] || osmResult.address?.state,
-      country: osmTags["addr:country"] || osmResult.address?.country,
-      countryCode: osmResult.address?.country_code,
+        osmTags["addr:housenumber"] || osmResult?.address?.house_number,
+      road: osmTags["addr:street"] || osmResult?.address?.road,
+      city: osmTags["addr:city"] || osmResult?.address?.city,
+      postcode: osmTags["addr:postcode"] || osmResult?.address?.postcode,
+      state: osmTags["addr:state"] || osmResult?.address?.state,
+      country: osmTags["addr:country"] || osmResult?.address?.country,
+      countryCode: osmResult?.address?.country_code,
     };
 
     return {
       coords,
-      osmInfo: {
-        displayName: osmResult.display_name,
-        id: osmResult.osm_id,
-        type: osmResult.type,
-        tags: osmResult.tags || {},
-      },
+      osmInfo: osmResult
+        ? {
+            displayName: osmResult.display_name,
+            id: osmResult.osm_id,
+            type: osmResult.type,
+            tags: osmResult.tags || {},
+          }
+        : undefined,
       paymentMethods,
       mapLinks,
-      formattedName: osmTags.name,
+      formattedName: osmTags.name || "",
       formattedAddress: addressFormatter.format(addressComponents),
     };
   } catch (error) {

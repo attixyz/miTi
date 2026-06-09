@@ -1,8 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { Bitcoin, Zap, Link2, Nfc, ExternalLink } from "lucide-react";
 import { useLocationInfo } from "@/hooks/useLocationInfo";
+import { decodeGeohash } from "@/utils/location/geohash";
 
 interface NovaEventMapProps {
   location?: string | null;
@@ -19,14 +21,29 @@ const EventLocationMap = dynamic(
 );
 
 /**
- * Progressive location card: the location string renders instantly (it comes
- * straight from the cached event), while the map embed, Bitcoin payment badges
- * (Overpass) and external map links fill in once Nominatim/Overpass resolve.
+ * Progressive location card: when a geohash is present its coordinates are
+ * decoded with pure math, so the map pin renders instantly — no network wait.
+ * The Bitcoin payment badges (Overpass) and external map links then fill in once
+ * Nominatim/Overpass resolve. Without a geohash, the pin waits on geocoding the
+ * location string.
  */
 export function NovaEventMap({ location, geohash }: NovaEventMapProps) {
   const { data, isLoading } = useLocationInfo(location, geohash);
 
-  const coords = data?.coords;
+  // Decode the geohash locally so the pin shows immediately, independent of the
+  // enrichment query above. Falls back to the geocoded coords when there's no
+  // (or an invalid) geohash.
+  const geohashCoords = useMemo(() => {
+    if (!geohash) return null;
+    try {
+      const { latitude, longitude } = decodeGeohash(geohash);
+      return { latitude, longitude };
+    } catch {
+      return null;
+    }
+  }, [geohash]);
+
+  const coords = geohashCoords ?? data?.coords;
 
   const pm = data?.paymentMethods;
 
