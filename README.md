@@ -2,6 +2,8 @@
 
 **miTi** is an open-source Nostr client for finding and publishing calendar events. It speaks [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md), so calendars and events created anywhere on the network appear here, and anything you publish from miTi propagates back out to every other Nostr client. Everything runs in the browser: discover what's happening, open the full details, place an event on a map, and add your own to the network.
 
+Try it: https://www.letsmiti.app
+
 ## Features
 
 - 📅 Browse NIP-52 calendars and date/time-based events (kinds 31922–31924)

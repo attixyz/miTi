@@ -12,7 +12,9 @@ npm run lint      # ESLint, zero warnings allowed
 npm run lint:fix  # auto-fix lint issues
 ```
 
-Production runs on port 4000 via PM2 (`ecosystem.config.cjs`).
+## Hosting
+
+Deployed on **Vercel**. `npm run build` runs on each push; Vercel injects `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` and forwarded host headers automatically, so `baseUrl.ts` resolves public URLs (canonical, OG, ICS/webcal) without config. Set `NEXT_PUBLIC_SITE_URL` (Project → Settings → Environment Variables) to pin a stable canonical to the custom domain; it's a `NEXT_PUBLIC_*` var so a **redeploy** is required for it to take effect. Custom domains + TLS are managed in the Vercel dashboard (Settings → Domains).
 
 ## Stack
 
