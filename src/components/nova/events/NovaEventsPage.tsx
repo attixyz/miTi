@@ -1,7 +1,7 @@
 "use client";
 
 import dayjs from "dayjs";
-import { Loader2, MapPin } from "lucide-react";
+import { Loader2, MapPin, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNovaEvents } from "./useNovaEvents";
 import { DaySwitcher } from "./DaySwitcher";
@@ -11,6 +11,8 @@ import { NovaEventCard } from "./NovaEventCard";
 export function NovaEventsPage() {
   const {
     loading,
+    fetching,
+    refresh,
     filteredEvents,
     availableTags,
     activeTags,
@@ -58,13 +60,29 @@ export function NovaEventsPage() {
             <h2 className="type-body-md font-semibold text-on-surface">
               {dateLabel}
             </h2>
-            {!loading && (
-              <span className="text-xs text-on-surface-variant">
-                {filteredEvents.length === 0
-                  ? "No events"
-                  : `${filteredEvents.length} event${filteredEvents.length !== 1 ? "s" : ""}`}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {!loading && (
+                <span className="text-xs text-on-surface-variant">
+                  {filteredEvents.length === 0
+                    ? "No events"
+                    : `${filteredEvents.length} event${filteredEvents.length !== 1 ? "s" : ""}`}
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label="Refresh events"
+                onClick={refresh}
+                disabled={fetching}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full",
+                  "text-on-surface-variant transition-colors",
+                  "hover:bg-surface-high hover:text-on-surface",
+                  "disabled:pointer-events-none disabled:opacity-60"
+                )}
+              >
+                <RefreshCw size={14} className={cn(fetching && "animate-spin")} />
+              </button>
+            </div>
           </div>
 
           {locationActive && locationLabel && (

@@ -57,7 +57,8 @@ src/
         ThemeToggle.tsx             # light/dark toggle, persists to localStorage
         LoginButton.tsx             # triggers nostr-login modal
       events/
-        useNovaEvents.ts            # fetch + filter hook (day, tags); uses NDK directly
+        eventsStore.ts              # app-wide events store: ONE shared NDK subscription feeds /list + /map; in-memory snapshot survives navigation; 1h staleness gate + forced refresh; useSyncExternalStore
+        useNovaEvents.ts            # filter hook (day, tags, location) over the eventsStore snapshot; exposes refresh/fetching
         NovaEventsPage.tsx          # events list page composition
         NovaEventCard.tsx           # uniform card: aspect-video image + content
         DaySwitcher.tsx             # horizontal scrollable day picker
@@ -80,7 +81,7 @@ src/
         LocationSearchInput.tsx     # debounced Nominatim combobox → coords (drives tz + geohash)
         TagInput.tsx                # chip input (hashtags / reference links)
       map/                          # events map (Phase 5)
-        useNovaMapEvents.ts         # fetch + day filter + coord resolution (geohash→decode, location→geocodeCache) + Haversine radius filter + geolocation
+        useNovaMapEvents.ts         # day filter over eventsStore + coord resolution (geohash→decode, location→geocodeCache); exposes refresh/fetching
         NovaMapPage.tsx             # map page composition (overlays + dynamic ssr:false map)
         EventMap.tsx                # react-leaflet map: themed CARTO tiles, CircleMarker pins + popups, radius Circle, user-location marker, fly/fit controller
         RadiusFilter.tsx            # distance filter: quick-select chips + slider
@@ -180,9 +181,10 @@ src/
 ### Main events feed flow
 
 1. `ClientProviders.tsx` initialises NDK (with `ndk-cache-dexie` adapter) + nostr-login on the client
-2. `useNovaEvents` calls `ndk.fetchEvents({ kinds:[31922,31923], since:now-30d, limit:1000 })`; on repeat visits NDK returns cached events from IndexedDB instantly before hitting the relay
-3. `useMemo` filters client-side by: selected day, active tag chips
-4. `NovaEventsPage` renders `DaySwitcher` + `TagFilterChips` + a 3-column `NovaEventCard` grid
+2. `eventsStore.ts` (module-level, shared by /list and /map) holds the one subscription: `ndk.subscribe({ kinds:[31922,31923], since:now-30d, limit:1000 }, CACHE_FIRST, closeOnEose)`. Start timestamps are precomputed on insert and flushes are debounced (50ms), so bursts sort plain numbers once instead of re-sorting with dayjs per event (the old per-event flush was O(n² log n) and froze navigation for seconds)
+3. The deduped/sorted snapshot lives in memory across navigation: a page remount renders it synchronously (no skeleton) and only re-queries relays when the last EOSE is >1h old, or via the refresh buttons on /list and /map (re-fetches use `ONLY_RELAY` — memory already holds the Dexie cache's contents)
+4. `useNovaEvents` / `useNovaMapEvents` filter the snapshot client-side by selected day, tag chips, location radius
+5. `NovaEventsPage` renders `DaySwitcher` + `TagFilterChips` + a 3-column `NovaEventCard` grid
 
 ### Server-side surface
 
@@ -222,6 +224,7 @@ Events don't load when clicking "open in a new tab" (background tab).
 | Layer | What | TTL | Survives refresh |
 |---|---|---|---|
 | `ndk-cache-dexie` (IndexedDB) | All NDK events + profiles | Persistent | **Yes** |
+| `eventsStore` (in-memory module) | Upcoming 31922/31923, deduped + sorted | 1 h staleness gate (refresh button forces) | No |
 | TanStack Query | Per-query cache | 5 min stale / 30 min gc | No |
 | `useLocationInfo` query | Nominatim results | 1 hour | No |
 | `nominatimCache` object (`locationUtils.ts`) | Raw Nominatim JSON | Forever (module lifetime) | No |

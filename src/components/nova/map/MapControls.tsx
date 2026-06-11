@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Map as LeafletMap } from "leaflet";
-import { Plus, Minus, Crosshair, Loader2 } from "lucide-react";
+import { Plus, Minus, Crosshair, Loader2, RefreshCw } from "lucide-react";
 import { getCurrentLocation } from "@/utils/location/locationUtils";
 import { cn } from "@/lib/utils";
 
@@ -11,10 +11,14 @@ const LOCATE_ZOOM = 14;
 
 interface MapControlsProps {
   map: LeafletMap | null;
+  /** Force a relay re-query of the events feeding the pins. */
+  onRefresh?: () => void;
+  /** True while a fetch is in flight — spins the refresh icon. */
+  refreshing?: boolean;
 }
 
-/** Floating bottom-right cluster: zoom in/out + center-on-my-location. */
-export function MapControls({ map }: MapControlsProps) {
+/** Floating bottom-right cluster: refresh + zoom in/out + center-on-my-location. */
+export function MapControls({ map, onRefresh, refreshing }: MapControlsProps) {
   const [locating, setLocating] = useState(false);
 
   // Pans/zooms the map to the visitor's position. Purely a view change — it
@@ -34,6 +38,17 @@ export function MapControls({ map }: MapControlsProps) {
 
   return (
     <div className="absolute right-3 md:right-6 bottom-28 md:bottom-6 z-[1100] flex flex-col gap-2">
+      {onRefresh && (
+        <ControlButton
+          label="Refresh events"
+          onClick={() => {
+            if (!refreshing) onRefresh();
+          }}
+          className="mb-1"
+        >
+          <RefreshCw size={16} className={cn(refreshing && "animate-spin")} />
+        </ControlButton>
+      )}
       <ControlButton label="Zoom in" onClick={() => map?.zoomIn()}>
         <Plus size={18} />
       </ControlButton>

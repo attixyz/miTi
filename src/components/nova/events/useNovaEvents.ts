@@ -1,114 +1,45 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNdk } from "nostr-hooks";
-import { type NDKEvent, NDKSubscriptionCacheUsage } from "@nostr-dev-kit/ndk";
+import { type NDKEvent } from "@nostr-dev-kit/ndk";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { useFilters } from "@/providers/FiltersContext";
 import { useEventCoordinates } from "@/components/nova/map/useEventCoordinates";
 import { calculateDistance } from "@/utils/location/locationUtils";
 import dayjs from "dayjs";
+import {
+  useEventsStore,
+  ensureFreshEvents,
+  refreshEvents,
+  getEventStart,
+} from "./eventsStore";
+
+// Canonical implementation moved to eventsStore; re-exported because cards,
+// the map and the calendar feature all import it from here.
+export { getEventStart } from "./eventsStore";
 
 // Stable empty array so passing "nothing to resolve" doesn't churn the
 // coordinate hook's effect on every render.
 const NO_EVENTS: NDKEvent[] = [];
-
-export function getEventStart(event: NDKEvent): dayjs.Dayjs | null {
-  const metadata = getEventMetadata(event);
-  if (!metadata.start) return null;
-
-  if (event.kind === 31922) {
-    const d = dayjs(metadata.start);
-    return d.isValid() ? d : null;
-  }
-
-  const ts = parseInt(metadata.start);
-  if (isNaN(ts)) return null;
-  return dayjs.unix(ts);
-}
 
 export function useNovaEvents() {
   const { ndk } = useNdk();
   // `selectedDay` lives in FiltersContext so it persists when switching between
   // /list and /map (see FiltersContext).
   const { location, radiusKm, selectedDay, setSelectedDay } = useFilters();
-  const [allEvents, setAllEvents] = useState<NDKEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Fetching, dedup and sorting live in the app-wide events store (one shared
+  // NDK subscription, 1h staleness, manual refresh); this hook only filters
+  // the shared snapshot by day, tags and location.
+  const { events: allEvents, loading, fetching } = useEventsStore();
   const [activeTags, setActiveTags] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!ndk) return;
+    if (ndk) ensureFreshEvents(ndk);
+  }, [ndk]);
 
-    setLoading(true);
-    setAllEvents([]);
-
-    const now = Math.floor(Date.now() / 1000);
-    const todayStart = dayjs().startOf("day");
-
-    // Dedup by addressable identity: the cache and each relay can deliver the
-    // same event, and replaceable events (31922/31923) arrive in multiple
-    // versions. `deduplicationKey()` returns `kind:pubkey:d` for these kinds;
-    // we keep the newest copy per key.
-    const byKey = new Map<string, NDKEvent>();
-
-    const flush = () => {
-      const upcoming = Array.from(byKey.values())
-        .filter((e) => {
-          const start = getEventStart(e);
-          return start && !start.isBefore(todayStart);
-        })
-        .sort((a, b) => {
-          const aStart = getEventStart(a);
-          const bStart = getEventStart(b);
-          if (!aStart) return 1;
-          if (!bStart) return -1;
-          return aStart.valueOf() - bStart.valueOf();
-        });
-      setAllEvents(upcoming);
-    };
-
-    let sub;
-    try {
-      sub = ndk.subscribe(
-        {
-          kinds: [31922 as any, 31923 as any],
-          since: now - 30 * 24 * 3600,
-          limit: 1000,
-        },
-        { closeOnEose: true, cacheUsage: NDKSubscriptionCacheUsage.CACHE_FIRST }
-      );
-    } catch (e) {
-      console.error("Failed to subscribe to events", e);
-      setLoading(false);
-      return;
-    }
-
-    // Cached events emit first (CACHE_FIRST), so the list paints before any
-    // relay answers; relay events then merge in as each relay responds. A slow
-    // relay can no longer block the render — it just contributes late.
-    sub.on("event", (incoming: NDKEvent) => {
-      const key = incoming.deduplicationKey();
-      const existing = byKey.get(key);
-      if (
-        !existing ||
-        (incoming.created_at ?? 0) >= (existing.created_at ?? 0)
-      ) {
-        byKey.set(key, incoming);
-        flush();
-      }
-      setLoading(false);
-    });
-
-    sub.on("eose", () => setLoading(false));
-
-    // Safety net: never stay in the skeleton forever if the cache is empty and
-    // every relay stays silent.
-    const fallback = setTimeout(() => setLoading(false), 8000);
-
-    return () => {
-      clearTimeout(fallback);
-      sub.stop();
-    };
+  const refresh = useCallback(() => {
+    if (ndk) refreshEvents(ndk);
   }, [ndk]);
 
   const dayEvents = useMemo(() => {
@@ -172,6 +103,8 @@ export function useNovaEvents() {
 
   return {
     loading,
+    fetching,
+    refresh,
     filteredEvents,
     availableTags,
     activeTags,

@@ -13,4 +13,7 @@ export const DEFAULT_RELAYS = [
   "wss://relay.damus.io",
   "wss://nos.lol",
   "wss://nostr.wine",
+  "wss://nostr.mom",
+  "wss://relay.ditto.pub/",
+  "wss://relay.primal.net/",
 ];

@@ -61,7 +61,7 @@ export function NovaMapPage() {
         </div>
       </div>
 
-      <MapControls map={map} />
+      <MapControls map={map} onRefresh={m.refresh} refreshing={m.fetching} />
     </div>
   );
 }
