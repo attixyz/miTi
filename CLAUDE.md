@@ -1,6 +1,6 @@
 # miTi
 
-NIP-52 Nostr calendar event discovery and creation app.
+NIP-52 Nostr calendar event discovery and creation app, with an **on-device personalization engine** (like/dislike → ranked feed, suggestions, spam filter) and **private cross-device sync** over Nostr (NIP-78 + NIP-44).
 
 ## Commands
 
@@ -19,8 +19,11 @@ Deployed on **Vercel**. `npm run build` runs on each push; Vercel injects `VERCE
 ## Stack
 
 - **Framework**: Next.js 15 (App Router), React 19, TypeScript 5
-- **UI**: Tailwind CSS v4 + shadcn/ui + Geist font (MUI fully removed in Phase 6 — entire app is nova/Tailwind)
+- **UI**: Tailwind CSS v4 + shadcn/ui + Base UI (`@base-ui/react`) + lucide-react icons + Geist font (MUI fully removed in Phase 6 — entire app is nova/Tailwind)
 - **Nostr**: `@nostr-dev-kit/ndk` v2 + `ndk-cache-dexie` (IndexedDB cache), nostr-hooks, nostr-tools, nostr-login
+- **Personalization (taste engine)**: own Dexie DB (`miti-taste`, separate from the NDK cache) + a Web Worker for indexing/scoring; `Intl.Segmenter` tokenization. See "Personalization, spam filter & sync" below
+- **Cross-device sync**: NIP-78 app data (kind 30078) + NIP-44 encrypt-to-self; `CompressionStream` (gzip) for the likes payload. Two synced docs: `miti-setting` and `miti-likes`
+- **PWA**: Serwist (`@serwist/next` + `serwist`) — service worker, installable app, offline page
 - **Data fetching**: TanStack React Query v5
 - **Date/time**: dayjs with utc + timezone plugins
 - **Timezone from coords**: `tz-lookup` (browser-safe lat/lon → IANA; used when a location is picked in the create form)
@@ -40,13 +43,28 @@ src/
       calendar/[id]/ics/route.ts    # ICS feed: webcal subscription + download (server-side, relay-hinted)
       og/calendar/[id]/route.tsx    # OG image for calendars
       og/event/[id]/route.tsx       # OG image for events
+    page.tsx                        # root landing (sends you into the events feed)
+    list/                           # main events feed, ranked by taste (replaces the old /events)
+    map/                            # events map (pins, radius filter, geolocation)
+    suggested/                      # recommended events (taste + proximity + happening-soon)
+    my-feedback/                    # everything you liked / disliked / reported / hidden
+    spam/                           # events flagged as spam or too short / low-effort
+    tag/[name]/                     # events for one hashtag, ranked by taste
+    event/[id]/                     # event detail page
     calendar/[id]/                  # calendar detail page
     calendars/                      # browse calendars
-    event/[id]/                     # event detail page
-    events/                         # main events feed (default landing)
-    map/                            # events map (Phase 5 — pins, radius filter, geolocation)
-    new-event/                      # create event (Phase 4 — nova create form; ?calendar= adds to a calendar)
-    new-calendar/                   # create/edit calendar (Phase 6 — nova form; ?edit=<naddr>)
+    new-event/                      # create event (nova create form; ?calendar= adds to a calendar)
+    new-calendar/                   # create/edit calendar (nova form; ?edit=<naddr>)
+    set-location-filter/            # pick place + radius; shared location filter for /list and /map
+    settings/                       # taste preferences (which event fields feed the corpus; debug toggle)
+    settings/relays/                # relay list + Blossom upload server
+    about/                          # about page
+    more/                           # mobile overflow nav (items not in the bottom bar)
+    debug/words/                    # inspect the word corpus (debug mode only)
+    debug/tanh-function/            # tune the squash slope k (debug mode only)
+    debug/suggested/                # tune the five suggested-ranking knobs (debug mode only)
+    ~offline/                       # PWA offline fallback page
+    sw.ts                           # Serwist service worker source
   components/
     LanguageProvider.tsx            # i18n language provider (currently unused)
     structured-data/                # EventStructuredData (JSON-LD; currently unused)
@@ -63,6 +81,7 @@ src/
         useNovaEvents.ts            # filter hook (day, tags, location) over the eventsStore snapshot; exposes refresh/fetching
         NovaEventsPage.tsx          # events list page composition
         NovaEventCard.tsx           # uniform card: aspect-video image + content
+        EventCardActions.tsx        # like / dislike / report / hide buttons on each card
         DaySwitcher.tsx             # horizontal scrollable day picker
         TagFilterChips.tsx          # horizontal scrollable tag filter
       event/                        # event detail (Phase 3)
@@ -71,7 +90,7 @@ src/
         eventSchedule.ts            # tzid-aware date/time formatting for display
         calendarLinks.ts            # Google Calendar URL + .ics builder (client-side)
         NovaEventDetail.tsx         # detail page composition (skeleton-first, progressive)
-        NovaEventActions.tsx        # hero like (local toggle, no publish) + flag menu (UI only)
+        NovaEventActions.tsx        # like / dislike / report / hide on the detail page (feeds the taste engine)
         NovaEventHost.tsx           # organizer avatar + name via useProfile
         NovaEventMap.tsx            # progressive OSM embed + Overpass payment badges + map links
         NovaEventRsvp.tsx           # RSVP segmented control (Going / Maybe / Can't go)
@@ -99,6 +118,24 @@ src/
         useCalendarMutations.ts     # NDK-native create/edit/delete + approveEvent (kind 31924)
         NostrEntityPicker.tsx       # kind-filtered entity picker (paste naddr / text search)
         NovaCreateCalendarPage.tsx  # /new-calendar create + ?edit=<naddr> edit form
+      taste/                        # personalization pages + helpers (like-dislike.md)
+        NovaYourFeedbackPage.tsx    # /my-feedback: liked / disliked / reported / hidden lists
+        SuggestedPage.tsx           # /suggested: events ranked by suggested_score
+        SpamPage.tsx                # /spam: events flagged short_text / high spam score
+        useEventsByCoordinate.ts    # resolve taste rows back to cached NDK events
+      filter/                       # location filter, shared by /list and /map
+        NovaSetLocationFilterPage.tsx
+        LocationFilterControl.tsx
+      settings/
+        NovaSettingsPage.tsx        # /settings: taste element checkboxes + debug toggle
+        NovaRelaysPage.tsx          # /settings/relays: relays + Blossom server + reset-to-defaults
+      about/NovaAboutPage.tsx       # /about
+      more/NovaMorePage.tsx         # /more mobile overflow nav
+      debug/                        # debug-only tuning UIs (all behind DebugGate)
+        DebugGate.tsx               # blocks the /debug routes unless the debug flag is on
+        DebugWordsPage.tsx          # word-corpus table
+        DebugTanhPage.tsx           # squash-slope (k) playground
+        DebugSuggestedPage.tsx      # suggested-ranking knob sliders
   hooks/
     useTheme.ts                     # reads/writes data-theme + localStorage
     useActiveUser.ts                # nostr-login user via nlAuth/nlLogout events (NDK-native; no authService)
@@ -111,8 +148,31 @@ src/
     ndkClient.ts                    # server-side NDK singleton (4 relays)
     i18n.ts
     utils.ts                        # cn() classname helper
+    taste/                          # on-device personalization engine (like-dislike.md)
+      db.ts                         # the `miti-taste` Dexie DB: words, event_taste, indexed_events, meta, sync_meta
+      tokenizer.ts                  # Intl.Segmenter word split + junk filter; which event fields are enabled
+      indexer.ts                    # index_event + full reindex; drives the worker
+      taste.worker.ts               # Web Worker: all corpus writes, scoring, and likes replay
+      messages.ts                   # worker message types
+      feedback.ts                   # record_feedback delta engine + merge_taste; React hooks over the rows
+      points.ts                     # ACTION_POINTS (like / dislike / report / rsvp / add-to-calendar)
+      scoring.ts                    # squash (tanh, slope k), idf, event_score, suggested_score
+      scores.ts                     # lazy per-event score cache + HIDDEN_SCORE_THRESHOLD
+      spam.ts                       # short_text / spam content signals
+      visibility.ts                 # useVisibleEvents — the shared /list + /map hide gate
+      tunables.ts                   # debug knobs (k + the five suggested knobs), localStorage-backed
+      settings.ts                   # taste element checkboxes + the debug flag
+    prefs/                          # NIP-78 cross-device sync (user-preferences.md)
+      nip78.ts                      # kind 30078 publish/fetch + NIP-44 encrypt-to-self
+      pool.ts                       # reconfigure the relay pool from the synced relay list
+      settingsStore.ts              # local `miti-setting` doc (relays, blossom_server, debug); whole-doc LWW
+      settingsSync.ts               # sync engine for `miti-setting`
+      likesDoc.ts                   # `miti-likes` payload: event_taste rows → gzip → base64
+      likesSync.ts                  # sync engine for `miti-likes` (fetch-merge, then publish)
   providers/
-    ClientProviders.tsx             # NDK init (4 relays), nostr-login, React Query, i18n (no MUI)
+    ClientProviders.tsx             # NDK init, nostr-login (now requests sign_event:30078 + nip44 perms), React Query, i18n
+    FiltersContext.tsx              # shared day + location/radius filter + map camera state
+    SettingsSyncBridge.tsx          # starts the miti-setting + miti-likes sync once a signer is present
   types/
     location.ts
     nostr.ts                        # (empty)
@@ -142,6 +202,8 @@ src/
 | 31922 | Date-based calendar event | `start` is ISO 8601 date string |
 | 31923 | Time-based calendar event | `start`/`end` are Unix timestamps |
 | 31924 | Calendar list | References events via `a` tags |
+| 31925 | RSVP | NIP-52 attendance (yes / maybe / no); also feeds the taste engine |
+| 30078 | App data (NIP-78) | Encrypted-to-self sync docs, addressed by `d` tag: `miti-setting` and `miti-likes` |
 
 ## NIP-52 Tag Reference
 
@@ -194,6 +256,30 @@ A handful of endpoints run on the server via the `getNdk()` singleton (no signer
 
 (The old `GET /api/calendar/[id]` JSON enrichment route was **removed** — orphaned after the Phase 6 nova migration, which moved geocoding client-side to `geocodeCache`.)
 
+## Personalization, spam filter & sync
+
+Three connected systems, all client-side. The taste engine and its data live in `src/lib/taste/`; the sync layer in `src/lib/prefs/`. Design docs (in the separate specs repo): `like-dislike.md` for taste + spam, `user-preferences.md` for sync.
+
+### Taste engine (recommendations)
+
+- **Storage:** its own Dexie DB, `miti-taste` (`lib/taste/db.ts`), kept separate from the NDK event cache so wiping/recomputing it never touches cached events. Tables: `words` (corpus word → weighted `count` + signed `like_score`), `event_taste` (per-event state, keyed by the `kind:pubkey:d` coordinate, not the mutable event id), `indexed_events`, `meta`, `sync_meta`.
+- **Indexing:** a Web Worker (`taste.worker.ts`) tokenizes each event with `Intl.Segmenter` + a junk filter (no stopword lists — `tokenizer.ts`) and splits points across the event's words weighted by `weight · idf`. Which fields feed the corpus — title + tags always; description, summary, location optional — is chosen on `/settings`; flipping one triggers a full reindex. All heavy work stays off the main thread.
+- **Feedback (delta model):** `record_feedback` (`feedback.ts`) records the change from the previous state, so repeating or switching an action never double-counts. Points (`points.ts`): like +100, dislike −50, report −100, add-to-calendar +200, RSVP yes/maybe/no +300/+150/+30. Like/dislike are mutually exclusive; RSVP is retractable; `hide` removes from view with no points.
+- **Scoring (lazy):** feedback only bumps `taste_version`; a route recomputes scores for just the visible events whose cache is stale (`scores.ts`). `scoring.ts` holds `squash` (tanh, slope `k`), `event_score` (idf-weighted mean), and `suggested_score` (taste × proximity × happening-soon). `/list` and `/tag/[name]` sort by score; `/suggested` uses `suggested_score`.
+
+### Spam / low-effort filter
+
+`spam.ts` derives content-only signals (empty or too-short main text; spam score) with no user action involved. `visibility.ts` (`useVisibleEvents`) is the single gate shared by `/list` and `/map`: it drops events the user hid/reported, events scoring under `HIDDEN_SCORE_THRESHOLD`, and short-text events. The `/spam` page lists what the filter caught.
+
+### Cross-device sync (NIP-78 + NIP-44)
+
+Off until a signer can do NIP-44 (extension / bunker / local key); read-only sessions skip it silently. `SettingsSyncBridge` starts two independent engines once a signer is present, each backed by a kind-30078 app-data event addressed by a `d` tag and encrypted **to yourself**:
+
+- **`miti-setting`** (`settingsStore.ts` / `settingsSync.ts`): relays, Blossom server, debug flag. localStorage is the working copy; whole-doc last-write-wins by `updated_at`. Published immediately-on-change (debounced) to the union of your relays + `DEFAULT_RELAYS`.
+- **`miti-likes`** (`likesDoc.ts` / `likesSync.ts`): your `event_taste` rows, gzip (`CompressionStream`) → base64 → NIP-44. Synced hourly while open, on tab-hide, and once after login, but only when `taste_version` moved past the last push. Every publish does a fetch-merge first (row-level LWW on `updated_at`), then the worker replays the merged rows to rebuild `words.like_score`.
+
+Relay bootstrap: defaults → fetch `miti-setting` → reconfigure the pool (`prefs/pool.ts`) → live subscription. The synced Blossom server flows into uploads (`useBlossomUpload.ts`), the create-form cover input, and the service-worker image-cache rule.
+
 ## Known Bugs / Limitations
 
 ### Location / distance filter
@@ -209,9 +295,9 @@ A handful of endpoints run on the server via the `getNdk()` singleton (no signer
 - **Save half — FIXED in Phase 4.** The nova create form (`useCreateEvent.ts`) interprets the picked wall-clock time in the selected zone via `dayjs.tz(wallClock, timezone).unix()`, and the timezone is auto-detected from the picked location's coordinates with `tz-lookup` (user-overridable).
 
 ### Blossom server
-- Image upload server hardcoded to `blossom.nostr.build`
-- BUD-03 user server list (kind 10063) is not respected
-- Fix: fetch user's kind 10063 event and use their preferred server
+- Now user-configurable: defaults to `blossom.nostr.build`, overridable on `/settings/relays` and synced across devices (`prefs/settingsStore.ts`). Wired into uploads, the cover input, and the SW image cache.
+- Still does **not** auto-discover the user's BUD-03 server list (kind 10063) — the value is set by hand.
+- Fix: fetch the user's kind 10063 event and pre-fill their preferred server.
 
 ### Events loading only in active tags
 
@@ -231,6 +317,10 @@ Events don't load when clicking "open in a new tab" (background tab).
 | `useLocationInfo` query | Nominatim results | 1 hour | No |
 | `nominatimCache` object (`locationUtils.ts`) | Raw Nominatim JSON | Forever (module lifetime) | No |
 | DataLoader (`loader.ts`) | Location lookups | Per-request | No |
+
+## PWA / offline
+
+Serwist (`@serwist/next`) compiles `src/app/sw.ts` → `public/sw.js` and registers it. The app is installable (web manifest + icons in `public/`, wired up in `app/layout.tsx`) and serves `app/~offline/page.tsx` when offline. The image-cache rule uses the user's configured Blossom server.
 
 ## i18n
 

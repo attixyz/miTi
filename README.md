@@ -1,6 +1,6 @@
 # miTi
 
-**miTi** is an open-source Nostr client for finding and publishing calendar events. It speaks [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md), so calendars and events created anywhere on the network appear here, and anything you publish from miTi propagates back out to every other Nostr client. Everything runs in the browser: discover what's happening, open the full details, place an event on a map, and add your own to the network.
+**miTi** is an open-source Nostr client for finding and publishing calendar events. It speaks [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md), so calendars and events created anywhere on the network appear here, and anything you publish from miTi propagates back out to every other Nostr client. Everything runs in the browser: discover what's happening, open the full details, place an event on a map, and add your own to the network. miTi also learns what you like — right on your device — to push the events worth your time to the top, and can sync your settings and feedback privately across your devices.
 
 Try it: https://www.letsmiti.app
 
@@ -8,22 +8,35 @@ Try it: https://www.letsmiti.app
 
 - 📅 Browse NIP-52 calendars and date/time-based events (kinds 31922–31924)
 - 🔎 Detailed event and calendar pages, including NIP-52 RSVPs (kind 31925)
-- 🗺️ Map view with a distance-radius filter and geolocation
+- ❤️ Personal recommendations — like, dislike, report, or hide events; miTi learns your taste and reorders the feed, plus a **Suggested** page and a **My feedback** page. It all happens on your device.
+- 🚫 Built-in spam filter that hides junk and low-effort events from the feed and map
+- 🔄 Optional cross-device sync of your settings and feedback, end-to-end encrypted to yourself over Nostr (NIP-78 + NIP-44)
+- 🛰️ Bring your own relays and Blossom upload server
+- 🗺️ Map view with a distance-radius filter and geolocation, plus a reusable location filter for the feed
 - ✍️ Publish your own events and calendars, with Blossom cover-image uploads
 - 🌍 Timezone-correct scheduling and display
 - 📥 Export any calendar to `.ics`, or subscribe to it over webcal
 - 🔗 Auto-generated OpenGraph previews so shared links unfurl cleanly
+- 📲 Installable as an app (PWA) and usable offline
 - 🌐 Available in English, German, and Spanish
+
+## Recommendations & privacy
+
+When you like, dislike, report, hide, or RSVP to an event, miTi turns the words in that event (its title, tags, and — if you opt in — its description, summary, and location) into a small private profile of what you tend to like. It then ranks every event by how well it matches, lifts good matches to the top of the feed, fills the **Suggested** page, and pushes likely junk to the **Spam** page.
+
+All of this runs in your browser and is stored only on your device (in IndexedDB). Nothing about your taste is ever sent anywhere in the clear. If you turn on sync, your settings and feedback are encrypted **to yourself** (NIP-44) and saved as Nostr app-data events (NIP-78, kind 30078), so only you can read them and only your own devices pick them up. Sync needs a signer that supports NIP-44 (a browser extension, a remote signer/bunker, or a local key); read-only logins simply skip it.
 
 ## Tech Stack
 
 - **Framework**: Next.js 15 (App Router), React 19, TypeScript 5
-- **UI**: Tailwind CSS v4 + shadcn/ui + Geist font
+- **UI**: Tailwind CSS v4 + shadcn/ui + Base UI + lucide-react icons + Geist font
 - **Nostr**: `@nostr-dev-kit/ndk` v2 with `ndk-cache-dexie` (IndexedDB), nostr-tools, nostr-login
+- **Personalization**: on-device taste engine in a Web Worker, stored in IndexedDB (Dexie); private cross-device sync via NIP-78 (kind 30078) + NIP-44 encryption
+- **PWA**: Serwist (`@serwist/next`) — installable app + offline support
 - **Data fetching**: TanStack React Query v5
 - **Maps**: react-leaflet v5 + Leaflet, CARTO basemaps
 - **Geocoding**: Nominatim (OpenStreetMap) + Overpass, cached in IndexedDB via Dexie
-- **Uploads**: Blossom protocol (`blossom.nostr.build`)
+- **Uploads**: Blossom protocol (default `blossom.nostr.build`, configurable in settings)
 - **i18n**: i18next + react-i18next
 
 Nearly all of the work happens client-side: NDK opens WebSockets straight from the browser to the relays. The only server-side code is a thin compatibility layer (the OpenGraph image routes, `generateMetadata`, and the ICS feed) that lets non-browser consumers such as link-preview crawlers and calendar apps still get useful output.
