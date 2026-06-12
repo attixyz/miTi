@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDebugFlag } from "@/lib/taste/settings";
 import { NAV_SECTIONS } from "@/components/nova/layout/navSections";
 
 /**
@@ -11,10 +12,15 @@ import { NAV_SECTIONS } from "@/components/nova/layout/navSections";
  * the rail and this screen stay in sync via the shared `NAV_SECTIONS` config.
  */
 export function NovaMorePage() {
-  const sections = NAV_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => !item.inBottomNav),
-  })).filter((section) => section.items.length > 0);
+  const { debug, ready } = useDebugFlag();
+  const sections = NAV_SECTIONS.filter(
+    (section) => !section.debugOnly || (ready && debug)
+  )
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.inBottomNav),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 lg:py-8">

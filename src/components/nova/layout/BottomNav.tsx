@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Newspaper, Map, Heart, PlusCircle, MoreHorizontal } from "lucide-react";
+import { Newspaper, Map, Sparkles, PlusCircle, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/list",      icon: Newspaper,      label: "List" },
   { href: "/map",       icon: Map,            label: "Map" },
-  { href: "/favorites", icon: Heart,          label: "Favorites" },
+  { href: "/suggested", icon: Sparkles,       label: "Suggested" },
   { href: "/new-event", icon: PlusCircle,     label: "New" },
   { href: "/more",      icon: MoreHorizontal, label: "More" },
 ] as const;

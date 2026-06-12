@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useTasteElementSettings,
@@ -58,7 +56,7 @@ export function NovaSettingsPage() {
           <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">
             Taste analysis
           </h2>
-          <div className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface/80 backdrop-blur-md">
+          <div className="overflow-hidden rounded-[6px] border border-outline-variant/30 bg-surface/80 backdrop-blur-md">
             <p className="px-4 pb-1 pt-3 text-xs leading-relaxed text-on-surface-variant">
               Events are analyzed on this device to learn your taste — nothing
               leaves your browser. Title and tags are always included; choose
@@ -92,7 +90,7 @@ export function NovaSettingsPage() {
           <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">
             Developer
           </h2>
-          <div className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface/80 backdrop-blur-md">
+          <div className="overflow-hidden rounded-[6px] border border-outline-variant/30 bg-surface/80 backdrop-blur-md">
             <label className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-200 hover:bg-surface-high">
               <div className="flex-1">
                 <div className="text-sm font-medium text-on-surface">Debug mode</div>
@@ -110,15 +108,6 @@ export function NovaSettingsPage() {
                 className="h-5 w-5 shrink-0 cursor-pointer accent-[var(--primary)]"
               />
             </label>
-            {ready && debug && (
-              <Link
-                href="/debug/words"
-                className="flex items-center gap-3 border-t border-outline-variant/20 px-4 py-3 transition-colors duration-200 hover:bg-surface-high"
-              >
-                <span className="flex-1 text-sm font-medium text-on-surface">Word corpus</span>
-                <ChevronRight size={18} className="text-on-surface-variant/50" />
-              </Link>
-            )}
           </div>
         </section>
       </div>

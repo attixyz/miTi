@@ -83,6 +83,7 @@ export function SuggestedPage() {
         const taste = scoreOf(scores, eventCoordinate(event));
         return {
           event,
+          distanceKm,
           score: suggestedScore(taste, distanceKm, daysUntilStart, knobs),
         };
       })
@@ -125,8 +126,13 @@ export function SuggestedPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ranked.map(({ event }) => (
-              <NovaEventCard key={event.id} event={event} />
+            {ranked.map(({ event, distanceKm }) => (
+              <NovaEventCard
+                key={event.id}
+                event={event}
+                showDate
+                distanceKm={distanceKm}
+              />
             ))}
           </div>
           {location && resolving && (

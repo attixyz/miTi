@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useDebugFlag } from "@/lib/taste/settings";
 import { NAV_SECTIONS, isActive } from "./navSections";
 
 /**
@@ -12,6 +13,10 @@ import { NAV_SECTIONS, isActive } from "./navSections";
  */
 export function Sidebar() {
   const pathname = usePathname();
+  const { debug, ready } = useDebugFlag();
+  const sections = NAV_SECTIONS.filter(
+    (section) => !section.debugOnly || (ready && debug)
+  );
 
   return (
     <aside
@@ -24,7 +29,7 @@ export function Sidebar() {
       )}
     >
       <nav className="flex-1 flex flex-col gap-6 overflow-y-auto">
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.header} className="flex flex-col gap-0.5">
             <h3 className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">
               {section.header}

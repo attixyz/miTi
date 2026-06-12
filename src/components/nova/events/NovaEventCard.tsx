@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { nip19 } from "nostr-tools";
-import { Clock, MapPin } from "lucide-react";
+import { Clock, MapPin, Navigation } from "lucide-react";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
 import dayjs from "dayjs";
 import { cn } from "@/lib/utils";
@@ -25,32 +25,52 @@ function getEventHref(event: NDKEvent): string {
   }
 }
 
-function formatEventTime(event: NDKEvent): string {
+function formatEventTime(event: NDKEvent, showDate = false): string {
+  const start = getEventStart(event);
+  // On feeds that mix multiple days (e.g. /suggested) the card carries the
+  // date too; day-scoped feeds (the list's day switcher) leave it off.
+  const datePart = showDate && start ? start.format("ddd, MMM D") : "";
+
   // Date-based events (31922) have no specific time — they run all day.
   if (event.kind === 31922) {
-    return "All day";
+    return datePart ? `${datePart} · All day` : "All day";
   }
 
-  // Time-based events (31923) without a start time show nothing.
+  // Time-based events (31923) without a start time show only the date (if any).
   const metadata = getEventMetadata(event);
-  if (!metadata.start) return "";
+  if (!metadata.start || !start) return datePart;
 
-  const start = getEventStart(event);
-  if (!start) return "";
+  let timePart = start.format("h:mm A");
+  if (metadata.end) {
+    const endTs = parseInt(metadata.end);
+    if (!isNaN(endTs)) {
+      timePart = `${timePart} – ${dayjs.unix(endTs).format("h:mm A")}`;
+    }
+  }
 
-  const timeStr = start.format("h:mm A");
-  if (!metadata.end) return timeStr;
-
-  const endTs = parseInt(metadata.end);
-  if (isNaN(endTs)) return timeStr;
-
-  return `${timeStr} – ${dayjs.unix(endTs).format("h:mm A")}`;
+  return datePart ? `${datePart} · ${timePart}` : timePart;
 }
 
-export function NovaEventCard({ event }: { event: NDKEvent }) {
+function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
+export function NovaEventCard({
+  event,
+  showDate = false,
+  distanceKm,
+}: {
+  event: NDKEvent;
+  /** Prefix the time row with the event's date (for multi-day feeds). */
+  showDate?: boolean;
+  /** Distance from the active location filter, in km, when known. */
+  distanceKm?: number | null;
+}) {
   const metadata = useMemo(() => getEventMetadata(event), [event]);
   const href = useMemo(() => getEventHref(event), [event]);
-  const timeStr = useMemo(() => formatEventTime(event), [event]);
+  const timeStr = useMemo(() => formatEventTime(event, showDate), [event, showDate]);
   const summary = metadata.shortDescription as string | undefined;
 
   return (
@@ -93,6 +113,12 @@ export function NovaEventCard({ event }: { event: NDKEvent }) {
               <div className="flex items-center gap-1.5 text-on-surface-variant">
                 <MapPin size={14} className="text-primary flex-shrink-0" />
                 <span className="type-body-sm truncate">{metadata.location}</span>
+              </div>
+            )}
+            {distanceKm != null && (
+              <div className="flex items-center gap-1.5 text-on-surface-variant">
+                <Navigation size={14} className="text-primary flex-shrink-0" />
+                <span className="type-body-sm">{formatDistance(distanceKm)} away</span>
               </div>
             )}
           </div>

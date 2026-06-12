@@ -22,6 +22,7 @@ export function EventCardActions({ event }: { event: NDKEvent }) {
   const liked = taste?.clicked_like != null;
   const disliked = taste?.clicked_dislike != null;
   const reported = taste?.clicked_report != null;
+  const hidden = taste?.clicked_hide != null;
 
   function handle(e: MouseEvent, action: () => void) {
     e.preventDefault();
@@ -60,13 +61,10 @@ export function EventCardActions({ event }: { event: NDKEvent }) {
 
       <button
         type="button"
-        aria-label="Hide event"
-        onClick={(e) => handle(e, () => void setHidden(event, true))}
-        className={cn(
-          "flex items-center justify-center w-8 h-8 rounded-full shadow-md",
-          "bg-surface/80 backdrop-blur-md transition-colors active:scale-95",
-          "text-on-surface-variant hover:bg-surface"
-        )}
+        aria-label={hidden ? "Unhide event" : "Hide event"}
+        aria-pressed={hidden}
+        onClick={(e) => handle(e, () => void setHidden(event, !hidden))}
+        className={buttonClass(hidden)}
       >
         <EyeOff size={15} />
       </button>

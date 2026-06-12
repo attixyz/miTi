@@ -9,6 +9,9 @@ import {
   Server,
   SlidersHorizontal,
   Info,
+  Type,
+  Activity,
+  ListOrdered,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,7 +24,12 @@ export type NavItem = {
   /** Not yet implemented — rendered as an inert "Soon" row on the /more screen. */
   soon?: boolean;
 };
-export type NavSection = { header: string; items: NavItem[] };
+export type NavSection = {
+  header: string;
+  items: NavItem[];
+  /** Rendered only when debug mode is on (desktop sidebar + /more). */
+  debugOnly?: boolean;
+};
 
 /**
  * Single source of truth for the app's primary navigation. Consumed by the
@@ -34,10 +42,10 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/list",        icon: Newspaper,   label: "List",         inBottomNav: true },
       { href: "/map",         icon: Map,         label: "Map",          inBottomNav: true },
-      { href: "/favorites",   icon: Heart,       label: "My Favorites", inBottomNav: true },
-      { href: "/suggested",   icon: Sparkles,    label: "Suggested" },
+      { href: "/suggested",     icon: Sparkles,    label: "Suggested",     inBottomNav: true },
+      { href: "/your-feedback", icon: Heart,       label: "Your feedback" },
+      { href: "/spam",          icon: ShieldAlert, label: "Spam" },
       { href: "/new-event",   icon: PlusCircle,  label: "New event",    inBottomNav: true },
-      { href: "/hidden",      icon: ShieldAlert, label: "Hidden & spam" },
     ],
   },
   {
@@ -53,6 +61,15 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/settings",        icon: SlidersHorizontal, label: "Preferences" },
       { href: "/settings/relays", icon: Server,            label: "Relays" },
       { href: "/about",           icon: Info,              label: "About" },
+    ],
+  },
+  {
+    header: "Debug",
+    debugOnly: true,
+    items: [
+      { href: "/debug/words",         icon: Type,        label: "Word corpus" },
+      { href: "/debug/tanh-function", icon: Activity,    label: "tanh function" },
+      { href: "/debug/suggested",     icon: ListOrdered, label: "Suggested ranking" },
     ],
   },
 ];
