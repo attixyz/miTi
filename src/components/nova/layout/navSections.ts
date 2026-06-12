@@ -43,7 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/list",        icon: Newspaper,   label: "List",         inBottomNav: true },
       { href: "/map",         icon: Map,         label: "Map",          inBottomNav: true },
       { href: "/suggested",     icon: Sparkles,    label: "Suggested",     inBottomNav: true },
-      { href: "/your-feedback", icon: Heart,       label: "Your feedback" },
+      { href: "/my-feedback",   icon: Heart,       label: "My feedback" },
       { href: "/spam",          icon: ShieldAlert, label: "Spam" },
       { href: "/new-event",   icon: PlusCircle,  label: "New event",    inBottomNav: true },
     ],

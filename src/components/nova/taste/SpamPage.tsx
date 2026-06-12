@@ -42,11 +42,11 @@ function eventHref(coordinate: string): string | null {
 
 /**
  * /spam — the algorithmic spam filter (like-dislike.md, "/hidden"). Unlike
- * /your-feedback, which lists events the user explicitly acted on, this page is
+ * /my-feedback, which lists events the user explicitly acted on, this page is
  * PURELY algorithmic: it scans the loaded events and flags the ones whose taste
  * score fell under the hidden threshold (low_like_score) or whose main text is
  * empty/too short (short_text). User-hidden and user-reported events are NOT
- * listed here — they already live under /your-feedback.
+ * listed here — they already live under /my-feedback.
  */
 export function SpamPage() {
   const { ndk } = useNdk();
@@ -90,8 +90,8 @@ export function SpamPage() {
         Events the filter flags automatically — a taste score under{" "}
         {HIDDEN_SCORE_THRESHOLD}, or fewer than {SHORT_TEXT_MIN_WORDS} words of
         description. Events you hid or reported yourself live under{" "}
-        <Link href="/your-feedback" className="underline">
-          your feedback
+        <Link href="/my-feedback" className="underline">
+          my feedback
         </Link>
         .
       </p>

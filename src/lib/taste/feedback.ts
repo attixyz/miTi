@@ -252,7 +252,7 @@ export function setHidden(event: NDKEvent, hidden: boolean): Promise<void> {
 /**
  * Hide/unhide by coordinate alone. Safe without the event because hiding moves
  * no points; `setHidden` delegates here. Toggled from the card's hide button —
- * red when hidden, a second tap un-hides (e.g. the /your-feedback hidden tab).
+ * red when hidden, a second tap un-hides (e.g. the /my-feedback hidden tab).
  */
 export function setHiddenByCoordinate(coordinate: string, hidden: boolean): Promise<void> {
   return enqueue(async () => {

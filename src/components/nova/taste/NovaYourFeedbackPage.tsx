@@ -39,7 +39,7 @@ interface TabConfig {
 }
 
 /**
- * The segments of /your-feedback, one per stored feedback signal. RSVP and
+ * The segments of /my-feedback, one per stored feedback signal. RSVP and
  * add-to-calendar are included because the engine tracks them too
  * (`last_rsvp_state`, `added_to_calendar` in EventTasteRow). RSVP has no
  * dedicated timestamp, so it orders by the row's last change (`updated_at`).
@@ -96,7 +96,7 @@ const TABS: TabConfig[] = [
 ];
 
 /**
- * /your-feedback — one place for every event the user has acted on. A
+ * /my-feedback — one place for every event the user has acted on. A
  * segmented control switches between the feedback signals (favorites, disliked,
  * hidden, reported, RSVP'd, added-to-calendar); the panel below shows the
  * matching events as cards. Replaces the old standalone /favorites and
@@ -143,7 +143,7 @@ export function NovaYourFeedbackPage() {
   return (
     <div className="px-[var(--margin-mobile)] md:px-[var(--margin-desktop)] py-6">
       <h1 className="mb-1 text-2xl font-bold tracking-tight text-on-surface">
-        Your feedback
+        My feedback
       </h1>
       <p className="mb-4 text-xs text-on-surface-variant">
         Every event you’ve reacted to, in one place.

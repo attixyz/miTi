@@ -7,9 +7,10 @@
 // the local store is always the working copy, sync just doesn't run.
 
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useNdk } from "nostr-hooks";
 import { cn } from "@/lib/utils";
+import { DEFAULT_RELAYS } from "@/lib/relays";
 import {
   DEFAULT_BLOSSOM_SERVER,
   getBlossomServer,
@@ -69,6 +70,24 @@ export function NovaRelaysPage() {
     }
   }
 
+  // Restore the relay list to the app defaults (relays.ts). Touches only the
+  // relay list — the saved cover-image server is left exactly as it was.
+  function resetRelays() {
+    if (
+      !window.confirm(
+        "Reset the relay list to miTi’s defaults? Your custom relays will be removed."
+      )
+    )
+      return;
+    const defaults = [...DEFAULT_RELAYS];
+    setError(null);
+    setRelays(defaults);
+    updateSettings({ relays: defaults });
+    if (ndk) applyRelaysToPool(ndk, defaults);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
   function save() {
     const server = blossom.trim() || DEFAULT_BLOSSOM_SERVER;
     if (!isValidServerUrl(server)) {
@@ -90,7 +109,17 @@ export function NovaRelaysPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 lg:py-8">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight text-on-surface">Relays</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-on-surface">Relays</h1>
+        <button
+          type="button"
+          onClick={resetRelays}
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-low active:scale-95"
+        >
+          <RotateCcw size={14} />
+          Reset to default list
+        </button>
+      </div>
 
       <div className="flex flex-col gap-8">
         <section className="flex flex-col gap-2">
