@@ -29,6 +29,8 @@ import { getK } from "./tunables";
 /**
  * An event counts as spam/hidden when its like_score falls under this
  * (like-dislike.md: there is no separate spam_score — this IS the spam signal).
+ * The shared feed visibility gate (visibility.ts) uses it to hide such events
+ * from /list and /map; the /spam page reports them.
  */
 export const HIDDEN_SCORE_THRESHOLD = -0.3;
 

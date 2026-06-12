@@ -1,9 +1,11 @@
 // Algorithmic "this looks like spam / an incomplete event" signals
 // (like-dislike.md, /hidden → "Reason: short_text, high_spam_score"). These are
-// derived PURELY from the event — no user action involved — and power the /spam
-// filter page. The signals are independent: an event can trip one, the other,
-// or both. The taste-score signal (low_like_score) lives in `scores.ts`
-// (HIDDEN_SCORE_THRESHOLD); this module owns the content signal.
+// derived PURELY from the event — no user action involved — and power both the
+// /spam filter page and the shared feed visibility gate (visibility.ts), which
+// hides flagged events from /list and /map. The signals are independent: an
+// event can trip one, the other, or both. The taste-score signal
+// (low_like_score) lives in `scores.ts` (HIDDEN_SCORE_THRESHOLD); this module
+// owns the content signal.
 
 import { tokenize } from "./tokenizer";
 

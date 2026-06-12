@@ -7,12 +7,9 @@ import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { useFilters } from "@/providers/FiltersContext";
 import { useEventCoordinates } from "@/components/nova/map/useEventCoordinates";
 import { calculateDistance } from "@/utils/location/locationUtils";
-import {
-  useTasteRows,
-  eventCoordinate,
-  isRemovedFromView,
-} from "@/lib/taste/feedback";
-import { useEventScores, scoreOf } from "@/lib/taste/scores";
+import { eventCoordinate } from "@/lib/taste/feedback";
+import { scoreOf } from "@/lib/taste/scores";
+import { useVisibleEvents } from "@/lib/taste/visibility";
 import dayjs from "dayjs";
 import {
   useEventsStore,
@@ -53,17 +50,10 @@ export function useNovaEvents({ fixedTag }: NovaEventsOptions = {}) {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<ListSort>("time");
 
-  // Events the user hid or reported are removed from view (like-dislike.md:
-  // hide carries no points, report is moderation — both just disappear here).
-  const tasteRows = useTasteRows();
-  const allEvents = useMemo(
-    () =>
-      storeEvents.filter((e) => {
-        const coordinate = eventCoordinate(e);
-        return !isRemovedFromView(coordinate ? tasteRows.get(coordinate) : undefined);
-      }),
-    [storeEvents, tasteRows]
-  );
+  // Shared feed visibility gate (see visibility.ts): user-hidden/reported events
+  // plus the algorithmic spam signals (low_like_score, short_text) drop out here.
+  // The returned score map is reused below for the taste sort.
+  const { visible: allEvents, scores } = useVisibleEvents(storeEvents);
 
   useEffect(() => {
     if (ndk) ensureFreshEvents(ndk);
@@ -124,11 +114,9 @@ export function useNovaEvents({ fixedTag }: NovaEventsOptions = {}) {
     return Array.from(tags).sort();
   }, [geoEvents]);
 
-  // Taste sort (like-dislike.md, "UI and routes"): lazily computed like_score,
-  // descending. Scores are only resolved while the sort is active; ties keep
-  // the time order (Array.sort is stable).
-  const scores = useEventScores(sortBy === "taste" ? geoEvents : NO_EVENTS);
-
+  // Taste sort (like-dislike.md, "UI and routes"): like_score descending, reusing
+  // the score map from the visibility gate above. Ties keep the time order
+  // (Array.sort is stable).
   const filteredEvents = useMemo(() => {
     const tagged =
       activeTags.length === 0
