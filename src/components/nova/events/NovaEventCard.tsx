@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import { cn } from "@/lib/utils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { getEventStart } from "./useNovaEvents";
+import { EventCardActions } from "./EventCardActions";
 
 function getEventHref(event: NDKEvent): string {
   try {
@@ -73,6 +74,7 @@ export function NovaEventCard({ event }: { event: NDKEvent }) {
               <span className="text-4xl opacity-20">📅</span>
             </div>
           )}
+          <EventCardActions event={event} />
         </div>
 
         <div className="p-4 flex flex-col gap-2 flex-1">

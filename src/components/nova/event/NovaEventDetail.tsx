@@ -141,7 +141,7 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
               />
             )}
             {/* Like + flag actions overlay (available as soon as the event is) */}
-            {event && <NovaEventActions />}
+            {event && <NovaEventActions event={event} />}
           </div>
 
           {/* Info block */}
@@ -272,6 +272,7 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
                 <NovaEventRsvp event={event} />
                 {metadata && (
                   <NovaAddToCalendar
+                    ndkEvent={event}
                     event={{
                       kind: event.kind,
                       title: metadata.title || "Event",

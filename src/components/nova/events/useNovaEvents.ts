@@ -7,6 +7,11 @@ import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { useFilters } from "@/providers/FiltersContext";
 import { useEventCoordinates } from "@/components/nova/map/useEventCoordinates";
 import { calculateDistance } from "@/utils/location/locationUtils";
+import {
+  useTasteRows,
+  eventCoordinate,
+  isRemovedFromView,
+} from "@/lib/taste/feedback";
 import dayjs from "dayjs";
 import {
   useEventsStore,
@@ -31,8 +36,20 @@ export function useNovaEvents() {
   // Fetching, dedup and sorting live in the app-wide events store (one shared
   // NDK subscription, 1h staleness, manual refresh); this hook only filters
   // the shared snapshot by day, tags and location.
-  const { events: allEvents, loading, fetching } = useEventsStore();
+  const { events: storeEvents, loading, fetching } = useEventsStore();
   const [activeTags, setActiveTags] = useState<string[]>([]);
+
+  // Events the user hid or reported are removed from view (like-dislike.md:
+  // hide carries no points, report is moderation — both just disappear here).
+  const tasteRows = useTasteRows();
+  const allEvents = useMemo(
+    () =>
+      storeEvents.filter((e) => {
+        const coordinate = eventCoordinate(e);
+        return !isRemovedFromView(coordinate ? tasteRows.get(coordinate) : undefined);
+      }),
+    [storeEvents, tasteRows]
+  );
 
   useEffect(() => {
     if (ndk) ensureFreshEvents(ndk);

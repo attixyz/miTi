@@ -12,6 +12,11 @@ import {
 } from "@/components/nova/events/eventsStore";
 import { useEventCoordinates } from "./useEventCoordinates";
 import { useFilters } from "@/providers/FiltersContext";
+import {
+  useTasteRows,
+  eventCoordinate,
+  isRemovedFromView,
+} from "@/lib/taste/feedback";
 
 /** An event that has been resolved to a coordinate and can be pinned on the map. */
 export interface MapEvent {
@@ -46,13 +51,20 @@ export function useNovaMapEvents() {
     if (ndk) refreshEvents(ndk);
   }, [ndk]);
 
+  // Hidden/reported events are removed from view here too, same as /list.
+  const tasteRows = useTasteRows();
+
   const dayEvents = useMemo(() => {
     const selected = dayjs(selectedDay);
     return allEvents.filter((e) => {
+      const coordinate = eventCoordinate(e);
+      if (isRemovedFromView(coordinate ? tasteRows.get(coordinate) : undefined)) {
+        return false;
+      }
       const start = getEventStart(e);
       return start && start.isSame(selected, "day");
     });
-  }, [allEvents, selectedDay]);
+  }, [allEvents, selectedDay, tasteRows]);
 
   const { coordsById, resolving } = useEventCoordinates(dayEvents);
 

@@ -28,7 +28,8 @@ let worker: Worker | null = null;
 let inFlight = 0;
 let reindexInFlight = false;
 
-function eventToDoc(event: NDKEvent): EventDoc | null {
+/** Serialize an NDK calendar event into the taste pipeline's document form. */
+export function eventToDoc(event: NDKEvent): EventDoc | null {
   if (event.kind !== 31922 && event.kind !== 31923) return null;
   const metadata = getEventMetadata(event);
   const d: string | undefined = metadata.uuid;

@@ -3,6 +3,8 @@
 import { Check, HelpCircle, X } from "lucide-react";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
 import { cn } from "@/lib/utils";
+import { setRsvpTaste } from "@/lib/taste/feedback";
+import type { TasteRsvpState } from "@/lib/taste/feedback";
 import { useNovaRsvp, type RsvpStatus } from "./useNovaRsvp";
 
 const OPTIONS: { status: RsvpStatus; label: string; icon: typeof Check }[] = [
@@ -11,8 +13,20 @@ const OPTIONS: { status: RsvpStatus; label: string; icon: typeof Check }[] = [
   { status: "declined", label: "Can't go", icon: X },
 ];
 
+const TASTE_STATE: Record<RsvpStatus, TasteRsvpState> = {
+  accepted: "yes",
+  tentative: "maybe",
+  declined: "no",
+};
+
 export function NovaEventRsvp({ event }: { event: NDKEvent }) {
   const { status, publishing, isLoggedIn, submit } = useNovaRsvp(event);
+
+  async function handleSubmit(value: RsvpStatus) {
+    // Taste feedback only for RSVPs that actually published; the delta engine
+    // makes re-submitting the same status a no-op.
+    if (await submit(value)) void setRsvpTaste(event, TASTE_STATE[value]);
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -31,7 +45,7 @@ export function NovaEventRsvp({ event }: { event: NDKEvent }) {
               key={value}
               type="button"
               disabled={publishing}
-              onClick={() => submit(value)}
+              onClick={() => void handleSubmit(value)}
               aria-pressed={active}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 py-2.5 rounded-[var(--radius-md)]",

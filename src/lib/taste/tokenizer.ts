@@ -149,3 +149,19 @@ export function* filteredWords(
     }
   }
 }
+
+/**
+ * Σ weight per distinct word of one event — the per-occurrence stream of
+ * `filteredWords` collapsed to a map. Both the feedback point split and the
+ * replay distribute over this.
+ */
+export function docWordWeights(
+  doc: EventDoc,
+  settings: TasteElementSettings
+): Map<string, number> {
+  const weights = new Map<string, number>();
+  for (const [word, weight] of filteredWords(doc, settings)) {
+    weights.set(word, (weights.get(word) ?? 0) + weight);
+  }
+  return weights;
+}

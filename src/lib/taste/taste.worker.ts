@@ -6,9 +6,11 @@
 
 import { getTasteDb, getMetaNumber, META_KEYS } from "./db";
 import type { TasteDB, WordRow } from "./db";
-import { filteredWords, elementsFingerprint } from "./tokenizer";
+import { filteredWords, elementsFingerprint, docWordWeights } from "./tokenizer";
 import type { EventDoc, TasteElementSettings } from "./tokenizer";
 import type { TasteWorkerRequest, TasteWorkerResponse } from "./messages";
+import { idf } from "./scoring";
+import { appliedRowPoints } from "./points";
 
 const ctx = self as unknown as { postMessage(message: TasteWorkerResponse): void };
 
@@ -122,10 +124,43 @@ async function indexBatch(
 }
 
 /**
- * Full rebuild: wipe the corpus and re-count every known event under the
- * current element selection. like_score restarts at 0 — replaying the
- * feedback rows on top of a rebuilt corpus arrives with the sync work
- * (Phase 5); until then there are no feedback rows to lose.
+ * Replay the stored feedback rows over freshly rebuilt counts: rebuilds every
+ * word's like_score with the CURRENT idf (self-correcting the write-time idf
+ * drift — an accepted trade-off in like-dislike.md). Rows whose event isn't
+ * in the batch stay dormant; add_to_calendar repeats are lost (documented
+ * replay caveat, see points.ts).
+ */
+function replayFeedback(
+  tasteRows: { coordinate: string; points: number }[],
+  docsByCoordinate: Map<string, EventDoc>,
+  counts: Map<string, number>,
+  total: number,
+  settings: TasteElementSettings
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  for (const { coordinate, points } of tasteRows) {
+    if (points === 0) continue;
+    const doc = docsByCoordinate.get(coordinate);
+    if (!doc) continue; // dormant: event not (yet) known on this device
+    const weights = docWordWeights(doc, settings);
+    let totalWeight = 0;
+    const idfWeights = new Map<string, number>();
+    for (const [word, weight] of weights) {
+      const w = weight * idf(counts.get(word) ?? 0, total);
+      idfWeights.set(word, w);
+      totalWeight += w;
+    }
+    if (totalWeight <= 0) continue;
+    for (const [word, w] of idfWeights) {
+      scores.set(word, (scores.get(word) ?? 0) + (points * w) / totalWeight);
+    }
+  }
+  return scores;
+}
+
+/**
+ * Full rebuild: wipe the corpus, re-count every known event under the current
+ * element selection, then rebuild like_score by replaying the feedback rows.
  */
 async function reindexAll(
   db: TasteDB,
@@ -133,6 +168,13 @@ async function reindexAll(
   settings: TasteElementSettings
 ): Promise<void> {
   const { counts, total } = countWords(docs, settings);
+  const docsByCoordinate = new Map(docs.map((d) => [d.coordinate, d]));
+
+  const feedback = (await db.event_taste.toArray()).map((row) => ({
+    coordinate: row.coordinate,
+    points: appliedRowPoints(row),
+  }));
+  const scores = replayFeedback(feedback, docsByCoordinate, counts, total, settings);
 
   await db.transaction("rw", db.words, db.indexed_events, db.meta, async () => {
     await db.words.clear();
@@ -141,7 +183,7 @@ async function reindexAll(
     const rows: WordRow[] = [...counts.entries()].map(([word, count]) => ({
       word,
       count,
-      like_score: 0,
+      like_score: scores.get(word) ?? 0,
     }));
     await db.words.bulkPut(rows);
 

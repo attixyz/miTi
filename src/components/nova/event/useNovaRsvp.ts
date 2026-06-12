@@ -81,22 +81,24 @@ export function useNovaRsvp(event: RsvpTarget | null) {
   }, [ndk]);
 
   const submit = useCallback(
-    async (next: RsvpStatus) => {
-      if (!ndk || !event?.id) return;
+    // Returns true only when the RSVP was actually published, so callers can
+    // record follow-up signals (the taste engine) on real submissions only.
+    async (next: RsvpStatus): Promise<boolean> => {
+      if (!ndk || !event?.id) return false;
 
       // Not logged in → open the nostr-login modal instead of failing.
       if (!activeUser) {
         if (typeof document !== "undefined") {
           document.dispatchEvent(new CustomEvent("nlLaunch", { detail: "welcome" }));
         }
-        return;
+        return false;
       }
 
       setPublishing(true);
       try {
         if (!(await ensureSigner())) {
           document.dispatchEvent(new CustomEvent("nlLaunch", { detail: "welcome" }));
-          return;
+          return false;
         }
 
         // Retract any previous RSVP first (NIP-09 deletion).
@@ -128,8 +130,10 @@ export function useNovaRsvp(event: RsvpTarget | null) {
 
         setCurrentRsvp(rsvp);
         setStatus(next);
+        return true;
       } catch (err) {
         console.error("Failed to publish RSVP", err);
+        return false;
       } finally {
         setPublishing(false);
       }
