@@ -20,6 +20,7 @@ import {
 import type NDK from "@nostr-dev-kit/ndk";
 import dayjs from "dayjs";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
+import { queueEventForIndexing } from "@/lib/taste/indexer";
 
 export function getEventStart(event: NDKEvent): dayjs.Dayjs | null {
   const metadata = getEventMetadata(event);
@@ -104,6 +105,10 @@ function handleIncoming(incoming: NDKEvent) {
     if ((incoming.created_at ?? 0) < (existing.event.created_at ?? 0)) return;
   }
   byKey.set(key, { event: incoming, start });
+  // Feed the taste corpus (like-dislike.md). Sits after the dedup checks so
+  // exact duplicates and stale versions never reach the indexer; the worker
+  // additionally skips events it has already counted across sessions.
+  queueEventForIndexing(incoming);
   scheduleFlush();
 }
 
