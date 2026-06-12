@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTasteDb, getMetaNumber, META_KEYS } from "@/lib/taste/db";
 import type { WordRow } from "@/lib/taste/db";
-import { useDebugFlag } from "@/lib/taste/settings";
+import { DebugGate } from "./DebugGate";
 import {
   requestFullReindex,
   isIndexing,
@@ -29,7 +28,14 @@ interface CorpusStats {
  * when the debug flag is on; live-reloads whenever the worker changes the DB.
  */
 export function DebugWordsPage() {
-  const { debug, ready } = useDebugFlag();
+  return (
+    <DebugGate what="inspect the word corpus">
+      <WordsCorpus />
+    </DebugGate>
+  );
+}
+
+function WordsCorpus() {
   const [stats, setStats] = useState<CorpusStats | null>(null);
   const [rows, setRows] = useState<WordRow[]>([]);
   const [search, setSearch] = useState("");
@@ -54,7 +60,6 @@ export function DebugWordsPage() {
   }, [search]);
 
   useEffect(() => {
-    if (!debug) return;
     void load();
     setIndexing(isIndexing());
     const onCorpusChange = () => void load();
@@ -67,23 +72,7 @@ export function DebugWordsPage() {
       window.removeEventListener(TASTE_CORPUS_CHANGED_EVENT, onCorpusChange);
       window.removeEventListener(TASTE_STATUS_EVENT, onStatus);
     };
-  }, [debug, load]);
-
-  if (!ready) return null;
-
-  if (!debug) {
-    return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-10 text-center">
-        <p className="text-sm text-on-surface-variant">
-          Debug mode is off. Enable it in{" "}
-          <Link href="/settings" className="font-medium text-[var(--primary)] underline">
-            Settings
-          </Link>{" "}
-          to inspect the word corpus.
-        </p>
-      </div>
-    );
-  }
+  }, [load]);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 lg:py-8">

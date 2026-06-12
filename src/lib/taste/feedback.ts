@@ -14,7 +14,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
-import { getTasteDb, getMetaNumber, META_KEYS } from "./db";
+import { getTasteDb, getMetaNumber, invalidateEventScores, META_KEYS } from "./db";
 import type { EventTasteRow, TasteDB } from "./db";
 import { docWordWeights } from "./tokenizer";
 import type { EventDoc } from "./tokenizer";
@@ -156,8 +156,7 @@ async function putRow(db: TasteDB, row: EventTasteRow): Promise<void> {
 
 /** invalidate_scores: bump taste_version; event scores recompute lazily. */
 async function invalidateScores(db: TasteDB): Promise<void> {
-  const version = await getMetaNumber(db, META_KEYS.tasteVersion);
-  await db.meta.put({ key: META_KEYS.tasteVersion, value: version + 1 });
+  await invalidateEventScores(db);
 }
 
 async function loadRow(db: TasteDB, coordinate: string): Promise<EventTasteRow> {
@@ -246,11 +245,19 @@ export function recordAddToCalendar(event: NDKEvent): Promise<void> {
 
 /** Hide carries NO point value — it only removes the event from view. */
 export function setHidden(event: NDKEvent, hidden: boolean): Promise<void> {
+  const coordinate = eventCoordinate(event);
+  return coordinate ? setHiddenByCoordinate(coordinate, hidden) : Promise.resolve();
+}
+
+/**
+ * Hide/unhide by coordinate alone. Safe without the event because hiding moves
+ * no points — /hidden uses this to unhide rows whose event isn't loadable.
+ */
+export function setHiddenByCoordinate(coordinate: string, hidden: boolean): Promise<void> {
   return enqueue(async () => {
-    const doc = eventToDoc(event);
     const db = getTasteDb();
-    if (!doc || !db) return;
-    const row = await loadRow(db, doc.coordinate);
+    if (!db) return;
+    const row = await loadRow(db, coordinate);
     if ((row.clicked_hide != null) === hidden) return;
 
     row.clicked_hide = hidden ? Date.now() : null;

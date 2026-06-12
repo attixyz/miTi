@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nip19 } from "nostr-tools";
 import { ArrowLeft, Share2, CalendarDays, MapPin, Link2, CalendarX } from "lucide-react";
@@ -204,12 +205,13 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
                 {hashtags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {hashtags.slice(0, 4).map((tag) => (
-                      <span
+                      <Link
                         key={tag}
-                        className="px-3 py-1 rounded-full bg-surface-high text-on-surface-variant type-label-sm"
+                        href={`/tag/${encodeURIComponent(tag.toLowerCase())}`}
+                        className="px-3 py-1 rounded-full bg-surface-high text-on-surface-variant type-label-sm transition-colors hover:text-on-surface hover:underline"
                       >
                         {tag}
-                      </span>
+                      </Link>
                     ))}
                   </div>
                 )}

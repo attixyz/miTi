@@ -4,11 +4,17 @@ import dayjs from "dayjs";
 import { Loader2, MapPin, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNovaEvents } from "./useNovaEvents";
+import type { ListSort } from "./useNovaEvents";
 import { DaySwitcher } from "./DaySwitcher";
 import { TagFilterChips } from "./TagFilterChips";
 import { NovaEventCard } from "./NovaEventCard";
 
-export function NovaEventsPage() {
+/**
+ * The /list page — and, with `fixedTag`, the /tag/[name] page: same day and
+ * location filters, same taste sort, but pinned to one tag and without the
+ * tag chips (like-dislike.md, "UI and routes").
+ */
+export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
   const {
     loading,
     fetching,
@@ -19,12 +25,14 @@ export function NovaEventsPage() {
     toggleTag,
     selectedDay,
     setSelectedDay,
+    sortBy,
+    setSortBy,
     totalCount,
     locationActive,
     locationLabel,
     radiusKm,
     locationResolving,
-  } = useNovaEvents();
+  } = useNovaEvents({ fixedTag });
 
   const selectedDayjs = dayjs(selectedDay);
   const isToday = selectedDayjs.isSame(dayjs(), "day");
@@ -34,6 +42,11 @@ export function NovaEventsPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-4">
+      {fixedTag && (
+        <h1 className="px-[var(--margin-mobile)] md:px-[var(--margin-desktop)] pt-4 text-2xl font-bold tracking-tight text-on-surface">
+          #{fixedTag}
+        </h1>
+      )}
       <div
         className={cn(
           "sticky top-16 z-30",
@@ -46,11 +59,13 @@ export function NovaEventsPage() {
             selectedDay={selectedDay}
             onSelect={setSelectedDay}
           />
-          <TagFilterChips
-            tags={availableTags}
-            activeTags={activeTags}
-            onToggle={toggleTag}
-          />
+          {!fixedTag && (
+            <TagFilterChips
+              tags={availableTags}
+              activeTags={activeTags}
+              onToggle={toggleTag}
+            />
+          )}
         </div>
       </div>
 
@@ -68,6 +83,7 @@ export function NovaEventsPage() {
                     : `${filteredEvents.length} event${filteredEvents.length !== 1 ? "s" : ""}`}
                 </span>
               )}
+              <SortToggle sortBy={sortBy} onChange={setSortBy} />
               <button
                 type="button"
                 aria-label="Refresh events"
@@ -114,6 +130,44 @@ export function NovaEventsPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Order the day's events by start time or by learned taste (like_score). */
+function SortToggle({
+  sortBy,
+  onChange,
+}: {
+  sortBy: ListSort;
+  onChange: (sort: ListSort) => void;
+}) {
+  const options: { value: ListSort; label: string }[] = [
+    { value: "time", label: "Time" },
+    { value: "taste", label: "Taste" },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label="Sort events"
+      className="flex overflow-hidden rounded-full border border-outline-variant/40"
+    >
+      {options.map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={sortBy === value}
+          onClick={() => onChange(value)}
+          className={cn(
+            "px-2.5 py-1 text-[11px] font-semibold transition-colors",
+            sortBy === value
+              ? "bg-primary text-on-primary"
+              : "text-on-surface-variant hover:bg-surface-high"
+          )}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

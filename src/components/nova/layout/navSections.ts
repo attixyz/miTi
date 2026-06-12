@@ -34,10 +34,10 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/list",        icon: Newspaper,   label: "List",         inBottomNav: true },
       { href: "/map",         icon: Map,         label: "Map",          inBottomNav: true },
-      { href: "#",            icon: Heart,       label: "My Favorites", inBottomNav: true },
-      { href: "/suggested",   icon: Sparkles,    label: "Suggested",    soon: true },
+      { href: "/favorites",   icon: Heart,       label: "My Favorites", inBottomNav: true },
+      { href: "/suggested",   icon: Sparkles,    label: "Suggested" },
       { href: "/new-event",   icon: PlusCircle,  label: "New event",    inBottomNav: true },
-      { href: "#",            icon: ShieldAlert, label: "Spam" },
+      { href: "/hidden",      icon: ShieldAlert, label: "Hidden & spam" },
     ],
   },
   {

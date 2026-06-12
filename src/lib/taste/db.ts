@@ -63,6 +63,12 @@ export const META_KEYS = {
   T: "T",
   /** Bumped whenever cached event scores go stale (reindex; later feedback). */
   tasteVersion: "taste_version",
+  /**
+   * Timestamp of the last invalidation. A cached event score is stale when its
+   * score_calculated_at does not strictly exceed this ("predates the last
+   * feedback" — like-dislike.md, "Lazy computation").
+   */
+  tasteInvalidatedAt: "taste_invalidated_at",
   /** Element selection the current corpus was built under. */
   elementsFingerprint: "elements_fingerprint",
 } as const;
@@ -101,4 +107,21 @@ export async function getMetaNumber(
 ): Promise<number> {
   const row = await database.meta.get(key);
   return typeof row?.value === "number" ? row.value : fallback;
+}
+
+/** Fired (main thread only) after cached event scores were invalidated. */
+export const TASTE_SCORES_STALE_EVENT = "miti-taste-scores-stale";
+
+/**
+ * invalidate_scores (like-dislike.md, "Lazy computation"): bump taste_version,
+ * stamp the invalidation time, and broadcast so score consumers recompute their
+ * visible events. Shared by the feedback engine and the debug knobs (k).
+ */
+export async function invalidateEventScores(database: TasteDB): Promise<void> {
+  const version = await getMetaNumber(database, META_KEYS.tasteVersion);
+  await database.meta.put({ key: META_KEYS.tasteVersion, value: version + 1 });
+  await database.meta.put({ key: META_KEYS.tasteInvalidatedAt, value: Date.now() });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(TASTE_SCORES_STALE_EVENT));
+  }
 }

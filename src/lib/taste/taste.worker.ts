@@ -197,8 +197,10 @@ async function reindexAll(
       key: META_KEYS.elementsFingerprint,
       value: elementsFingerprint(settings),
     });
-    // Every cached event score is stale now.
+    // Every cached event score is stale now. (No window here — the main-thread
+    // indexer broadcasts TASTE_CORPUS_CHANGED_EVENT when this batch completes.)
     const version = await getMetaNumber(db, META_KEYS.tasteVersion);
     await db.meta.put({ key: META_KEYS.tasteVersion, value: version + 1 });
+    await db.meta.put({ key: META_KEYS.tasteInvalidatedAt, value: Date.now() });
   });
 }

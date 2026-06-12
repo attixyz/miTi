@@ -12,6 +12,7 @@ import {
   eventCoordinate,
   isRemovedFromView,
 } from "@/lib/taste/feedback";
+import { useEventScores, scoreOf } from "@/lib/taste/scores";
 import dayjs from "dayjs";
 import {
   useEventsStore,
@@ -28,7 +29,19 @@ export { getEventStart } from "./eventsStore";
 // coordinate hook's effect on every render.
 const NO_EVENTS: NDKEvent[] = [];
 
-export function useNovaEvents() {
+/** /list ordering: start time (default) or taste (like_score descending). */
+export type ListSort = "time" | "taste";
+
+export interface NovaEventsOptions {
+  /**
+   * /tag/[name]: pin one tag — only events carrying it flow through the day,
+   * location and sort pipeline. The tag filter chips are meaningless then
+   * (every event already matches) and the page hides them.
+   */
+  fixedTag?: string;
+}
+
+export function useNovaEvents({ fixedTag }: NovaEventsOptions = {}) {
   const { ndk } = useNdk();
   // `selectedDay` lives in FiltersContext so it persists when switching between
   // /list and /map (see FiltersContext).
@@ -38,6 +51,7 @@ export function useNovaEvents() {
   // the shared snapshot by day, tags and location.
   const { events: storeEvents, loading, fetching } = useEventsStore();
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<ListSort>("time");
 
   // Events the user hid or reported are removed from view (like-dislike.md:
   // hide carries no points, report is moderation — both just disappear here).
@@ -59,13 +73,21 @@ export function useNovaEvents() {
     if (ndk) refreshEvents(ndk);
   }, [ndk]);
 
+  const tagEvents = useMemo(() => {
+    const tag = fixedTag?.toLowerCase();
+    if (!tag) return allEvents;
+    return allEvents.filter((e) =>
+      getEventMetadata(e).hashtags.some((t: string) => t.toLowerCase() === tag)
+    );
+  }, [allEvents, fixedTag]);
+
   const dayEvents = useMemo(() => {
     const selected = dayjs(selectedDay);
-    return allEvents.filter((e) => {
+    return tagEvents.filter((e) => {
       const start = getEventStart(e);
       return start && start.isSame(selected, "day");
     });
-  }, [allEvents, selectedDay]);
+  }, [tagEvents, selectedDay]);
 
   // App-wide location filter: when a location is set with a concrete radius
   // ("Any distance" = null skips this), keep only the day's events within that
@@ -102,15 +124,27 @@ export function useNovaEvents() {
     return Array.from(tags).sort();
   }, [geoEvents]);
 
+  // Taste sort (like-dislike.md, "UI and routes"): lazily computed like_score,
+  // descending. Scores are only resolved while the sort is active; ties keep
+  // the time order (Array.sort is stable).
+  const scores = useEventScores(sortBy === "taste" ? geoEvents : NO_EVENTS);
+
   const filteredEvents = useMemo(() => {
-    if (activeTags.length === 0) return geoEvents;
-    return geoEvents.filter((e) => {
-      const eventTags = getEventMetadata(e).hashtags.map((t: string) =>
-        t.toLowerCase()
-      );
-      return activeTags.some((tag) => eventTags.includes(tag));
-    });
-  }, [geoEvents, activeTags]);
+    const tagged =
+      activeTags.length === 0
+        ? geoEvents
+        : geoEvents.filter((e) => {
+            const eventTags = getEventMetadata(e).hashtags.map((t: string) =>
+              t.toLowerCase()
+            );
+            return activeTags.some((tag) => eventTags.includes(tag));
+          });
+    if (sortBy !== "taste") return tagged;
+    return [...tagged].sort(
+      (a, b) =>
+        scoreOf(scores, eventCoordinate(b)) - scoreOf(scores, eventCoordinate(a))
+    );
+  }, [geoEvents, activeTags, sortBy, scores]);
 
   const toggleTag = (tag: string) => {
     setActiveTags((prev) =>
@@ -128,7 +162,9 @@ export function useNovaEvents() {
     toggleTag,
     selectedDay,
     setSelectedDay,
-    totalCount: allEvents.length,
+    sortBy,
+    setSortBy,
+    totalCount: tagEvents.length,
     // Location filter status (consumed by the page for a header line).
     locationActive,
     locationLabel: location?.label ?? null,
