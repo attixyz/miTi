@@ -7,8 +7,8 @@ import {
   useTasteElementSettings,
   setTasteElementSettings,
   useDebugFlag,
-  setDebugFlag,
 } from "@/lib/taste/settings";
+import { updateSettings } from "@/lib/prefs/settingsStore";
 import { requestFullReindex } from "@/lib/taste/indexer";
 import type { TasteElementSettings } from "@/lib/taste/tokenizer";
 
@@ -103,7 +103,10 @@ export function NovaSettingsPage() {
               <input
                 type="checkbox"
                 checked={ready && debug}
-                onChange={(e) => setDebugFlag(e.target.checked)}
+                // Through the synced settings store, so the flag travels in
+                // the miti-setting doc (user-preferences.md) — useDebugFlag
+                // still re-renders via the same broadcast as before.
+                onChange={(e) => updateSettings({ debug: e.target.checked })}
                 className="h-5 w-5 shrink-0 cursor-pointer accent-[var(--primary)]"
               />
             </label>

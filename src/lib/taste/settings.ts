@@ -1,10 +1,12 @@
 "use client";
 
 // Local taste-pipeline settings: the element-selection checkboxes and the
-// `debug` flag. Both live in localStorage for now; the debug flag (and later
-// the element selection) moves into the synced `miti-setting` doc in Phase 4
-// (user-preferences.md). Same broadcast pattern as useTheme: every hook
-// instance stays in sync via a window CustomEvent.
+// `debug` flag. Both live in localStorage. The debug flag now also rides in
+// the synced `miti-setting` doc (user-preferences.md): UI edits go through
+// `prefs/settingsStore.updateSettings({ debug })`, which delegates storage to
+// the helpers here — so the storage key, getter and hook are unchanged. Same
+// broadcast pattern as useTheme: every hook instance stays in sync via a
+// window CustomEvent.
 
 import { useEffect, useState } from "react";
 import { DEFAULT_ELEMENT_SETTINGS } from "./tokenizer";

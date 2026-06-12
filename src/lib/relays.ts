@@ -1,9 +1,10 @@
 // Single source of truth for the default Nostr relay set.
 //
 // Used by BOTH runtimes, intentionally:
-//   - Client (`ClientProviders.tsx`): the initial pool, the relays used to
-//     fetch the user's NIP-78 settings before reconfiguring, and the fallback
-//     when they have no saved preferences.
+//   - Client: the initial pool and the fallback when the user has no saved
+//     relay list (`prefs/settingsStore.ts`), and part of the union the NIP-78
+//     settings docs are always fetched from and published to — what lets a
+//     fresh device discover the settings at all (`prefs/settingsSync.ts`).
 //   - Server (`ndkClient.ts`): the static set for the metadata/OG/ICS
 //     generators, which run for anonymous crawlers/calendar apps (no user).
 //

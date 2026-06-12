@@ -4,11 +4,20 @@ import { useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBlossomUpload } from "@/hooks/useBlossomUpload";
+import { useBlossomServer } from "@/lib/prefs/settingsStore";
 
 interface CoverImageInputProps {
   value: string | null;
   onChange: (url: string | null) => void;
   onUploadingChange?: (uploading: boolean) => void;
+}
+
+function blossomHost(server: string): string {
+  try {
+    return new URL(server).hostname;
+  } catch {
+    return server;
+  }
 }
 
 export function CoverImageInput({
@@ -17,6 +26,7 @@ export function CoverImageInput({
   onUploadingChange,
 }: CoverImageInputProps) {
   const { uploadFile } = useBlossomUpload();
+  const blossomServer = useBlossomServer();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +90,7 @@ export function CoverImageInput({
                 <ImagePlus size={28} className="text-primary" />
                 <span className="type-body-sm">Upload a cover image</span>
                 <span className="type-label-sm opacity-60">
-                  Stored on blossom.nostr.build
+                  Stored on {blossomHost(blossomServer)}
                 </span>
               </>
             )}

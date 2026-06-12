@@ -7,7 +7,8 @@ import { useNdk } from "nostr-hooks";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLanguageSync } from "@/hooks/useLanguageSync";
 import { FiltersProvider } from "@/providers/FiltersContext";
-import { DEFAULT_RELAYS } from "@/lib/relays";
+import { SettingsSyncBridge } from "@/providers/SettingsSyncBridge";
+import { getEffectiveRelays } from "@/lib/prefs/settingsStore";
 import type { NDKNip07Signer } from "@nostr-dev-kit/ndk";
 
 const queryClient = new QueryClient({
@@ -57,12 +58,17 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
       const { default: NDKCacheDexie } = await import("@nostr-dev-kit/ndk-cache-dexie");
       const cacheAdapter = new NDKCacheDexie({ dbName: "miti-ndk" }) as any;
 
+      // The user's saved relay list (synced via miti-setting), falling back
+      // to DEFAULT_RELAYS. The settings sync engine reconfigures the pool in
+      // place if a newer doc arrives after login.
+      const relays = getEffectiveRelays();
+
       if (withSigner && typeof window !== "undefined" && window.nostr) {
         const { NDKNip07Signer: Signer } = await import("@nostr-dev-kit/ndk");
         const signer: NDKNip07Signer = new Signer();
-        initNdkRef.current({ explicitRelayUrls: DEFAULT_RELAYS, signer, cacheAdapter });
+        initNdkRef.current({ explicitRelayUrls: relays, signer, cacheAdapter });
       } else {
-        initNdkRef.current({ explicitRelayUrls: DEFAULT_RELAYS, cacheAdapter });
+        initNdkRef.current({ explicitRelayUrls: relays, cacheAdapter });
       }
     };
 
@@ -75,7 +81,11 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
           bunkers: "nsec.app,highlighter.com,amber.app",
           theme: "default",
           darkMode: prefersDark,
-          perms: "sign_event:1,nip04_encrypt,nip04_decrypt",
+          // NIP-78 settings sync encrypts to self with NIP-44 and signs kind
+          // 30078 (user-preferences.md, "Encryption"). NIP-04 dropped: the
+          // spec rejected it (deprecated, weaker) and nothing else used it.
+          // Existing bunker users may see a one-time re-consent prompt.
+          perms: "sign_event:30078,nip44_encrypt,nip44_decrypt",
           noBanner: true,
           methods: ["connect", "extension", "readOnly", "local"],
           onAuth: async (_npub, options) => {
@@ -95,7 +105,12 @@ function BaseProviderContent({ children }: { children: ReactNode }) {
     ndk.connect();
   }, [ndk]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <SettingsSyncBridge />
+      {children}
+    </>
+  );
 }
 
 export default function ClientProviders({

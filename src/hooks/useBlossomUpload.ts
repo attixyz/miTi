@@ -2,6 +2,7 @@
 import { BlossomClient } from "blossom-client-sdk";
 import { useNdk } from "nostr-hooks";
 import { useActiveUser } from "@/hooks/useActiveUser";
+import { getBlossomServer } from "@/lib/prefs/settingsStore";
 import { getEventHash } from "nostr-tools";
 import {
   type EventTemplate,
@@ -38,8 +39,9 @@ export const useBlossomUpload = () => {
         } as Event;
       };
 
-      // 2. Create client instance with signer
-      const server = "https://blossom.nostr.build";
+      // 2. Create client instance with signer, pointed at the user's
+      // configured server (`blossom_server` in the synced miti-setting doc).
+      const server = getBlossomServer();
       const client = new BlossomClient(server, signer);
 
       // 3. Create upload auth

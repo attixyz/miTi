@@ -50,9 +50,9 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     header: "Settings",
     items: [
-      { href: "/settings", icon: SlidersHorizontal, label: "Preferences" },
-      { href: "#",         icon: Server,            label: "Relays" },
-      { href: "/about",    icon: Info,              label: "About" },
+      { href: "/settings",        icon: SlidersHorizontal, label: "Preferences" },
+      { href: "/settings/relays", icon: Server,            label: "Relays" },
+      { href: "/about",           icon: Info,              label: "About" },
     ],
   },
 ];
@@ -60,5 +60,7 @@ export const NAV_SECTIONS: NavSection[] = [
 export function isActive(href: string, pathname: string): boolean {
   if (href === "#") return false;
   if (href === "/list") return pathname === "/list";
+  // /settings/relays is its own nav item — don't light up Preferences for it.
+  if (href === "/settings") return pathname === "/settings";
   return pathname === href || pathname.startsWith(href + "/");
 }

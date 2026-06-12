@@ -33,9 +33,16 @@ const meetstrCache: RuntimeCaching[] = [
     }),
   },
   {
-    // Blossom-hosted images (event covers, avatars).
+    // Blossom-hosted images (event covers, avatars). The upload server is
+    // user-configurable (`blossom_server` in the synced miti-setting doc),
+    // and a service worker cannot read the localStorage that setting lives
+    // in — so instead of matching a hostname, match the Blossom URL shape:
+    // blobs are addressed as /<sha256>[.ext] (BUD-01), whatever the server.
+    // The default host stays as an explicit match for its non-blob assets.
     matcher: ({ url, request }) =>
-      url.hostname === "blossom.nostr.build" && request.destination === "image",
+      request.destination === "image" &&
+      (url.hostname === "blossom.nostr.build" ||
+        /^\/[0-9a-f]{64}(\.[a-z0-9]+)?$/i.test(url.pathname)),
     handler: new CacheFirst({
       cacheName: "blossom-images",
       plugins: [
