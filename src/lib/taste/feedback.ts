@@ -270,3 +270,42 @@ export function setHiddenByCoordinate(coordinate: string, hidden: boolean): Prom
 export function isRemovedFromView(row: EventTasteRow | undefined): boolean {
   return row != null && (row.clicked_hide != null || row.clicked_report != null);
 }
+
+/**
+ * merge_taste (user-preferences.md, "Merging"): row-level last-write-wins on
+ * updated_at. A remote row that is strictly newer (or unknown here) replaces
+ * the whole local row — never merged field-by-field, so like/dislike
+ * exclusivity and RSVP consistency cannot be violated; rows present locally
+ * only are kept as-is. Runs on the same op chain as the click handlers, so a
+ * click can never interleave with a merge. Returns whether anything changed —
+ * the caller (likesSync) then invalidates scores and requests the replay.
+ */
+export function mergeRemoteTasteRows(remote: EventTasteRow[]): Promise<boolean> {
+  let changed = false;
+  return enqueue(async () => {
+    const db = getTasteDb();
+    if (!db || remote.length === 0) return;
+    await ensureHydrated();
+
+    const winners: EventTasteRow[] = [];
+    for (const incoming of remote) {
+      const local = snapshot.get(incoming.coordinate);
+      if (local && (local.updated_at ?? 0) >= (incoming.updated_at ?? 0)) continue;
+      winners.push({
+        ...incoming,
+        // The local cached score stays as stale-but-usable; it recomputes
+        // lazily once the post-merge replay invalidates it.
+        like_score: local?.like_score ?? 0,
+        score_calculated_at: null,
+      });
+    }
+    if (winners.length === 0) return;
+
+    await db.event_taste.bulkPut(winners);
+    const next = new Map(snapshot);
+    for (const row of winners) next.set(row.coordinate, row);
+    snapshot = next;
+    notify();
+    changed = true;
+  }).then(() => changed);
+}

@@ -14,12 +14,22 @@ export type TasteWorkerRequest =
       type: "reindex";
       docs: EventDoc[];
       settings: TasteElementSettings;
+    }
+  | {
+      /**
+       * Rebuild every word's like_score by replaying the feedback rows over
+       * the EXISTING corpus counts — after a miti-likes sync merge changed
+       * event_taste (user-preferences.md, "Merging"). Counts and T stay put.
+       */
+      type: "replay";
+      docs: EventDoc[];
+      settings: TasteElementSettings;
     };
 
 export type TasteWorkerResponse =
   | {
       type: "done";
-      mode: "index" | "reindex";
+      mode: "index" | "reindex" | "replay";
       /** Events whose words were (re)counted in this run. */
       indexed: number;
       /**

@@ -20,6 +20,8 @@ export const TASTE_STATUS_EVENT = "miti-taste-status";
 
 /** Batches per-event bursts (cache replay, relay trickle) into one worker call. */
 const FLUSH_DELAY_MS = 400;
+/** A queued feedback replay waits for this much indexing quiet before running. */
+const REPLAY_QUIET_MS = 1500;
 
 const docRegistry = new Map<string, EventDoc>(); // by coordinate, latest version
 const pending = new Map<string, EventDoc>();
@@ -27,6 +29,8 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let worker: Worker | null = null;
 let inFlight = 0;
 let reindexInFlight = false;
+let replayQueued = false;
+let replayTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Serialize an NDK calendar event into the taste pipeline's document form. */
 export function eventToDoc(event: NDKEvent): EventDoc | null {
@@ -67,7 +71,8 @@ function getWorker(): Worker | null {
       if (msg.mode === "reindex") reindexInFlight = false;
       if (msg.needsReindex) requestFullReindex();
       broadcastStatus();
-      if (msg.indexed > 0 || msg.mode === "reindex") {
+      scheduleReplayCheck();
+      if (msg.indexed > 0 || msg.mode !== "index") {
         window.dispatchEvent(new CustomEvent(TASTE_CORPUS_CHANGED_EVENT));
       }
     };
@@ -135,4 +140,35 @@ export function requestFullReindex() {
 /** True while any worker batch is in flight — drives debug-page indicators. */
 export function isIndexing(): boolean {
   return inFlight > 0;
+}
+
+function scheduleReplayCheck() {
+  if (!replayQueued || replayTimer != null) return;
+  replayTimer = setTimeout(() => {
+    replayTimer = null;
+    // Not calm yet (batches in flight or queued, or no events known at all):
+    // the next batch completion re-schedules. An empty registry must never
+    // replay — it would zero every accumulated like_score for nothing.
+    if (!replayQueued || inFlight > 0 || pending.size > 0 || docRegistry.size === 0) {
+      return;
+    }
+    replayQueued = false;
+    postToWorker({
+      type: "replay",
+      docs: [...docRegistry.values()],
+      settings: getTasteElementSettings(),
+    });
+  }, REPLAY_QUIET_MS);
+}
+
+/**
+ * Rebuild `words.like_score` by replaying the feedback rows over the current
+ * corpus — requested by the miti-likes sync after a merge changed event_taste
+ * (user-preferences.md, "Merging"). Deferred until the indexing pipeline has
+ * been quiet for a moment, so a login-time merge doesn't replay over a
+ * registry the NDK cache replay is still filling.
+ */
+export function requestFeedbackReplay() {
+  replayQueued = true;
+  scheduleReplayCheck();
 }

@@ -60,8 +60,12 @@ interface SyncState {
 
 let state: SyncState | null = null;
 
-/** Both docs are published to user relays ∪ defaults (spec: "Relay bootstrap"). */
-function publishRelayUrls(): string[] {
+/**
+ * Both docs are published to (and fetched over) the union of the user's
+ * relays and DEFAULT_RELAYS, so a fresh device can discover them from the
+ * defaults alone (spec: "Relay bootstrap"). Shared with the miti-likes sync.
+ */
+export function publishRelayUrls(): string[] {
   return [...new Set([...getEffectiveRelays(), ...DEFAULT_RELAYS])];
 }
 

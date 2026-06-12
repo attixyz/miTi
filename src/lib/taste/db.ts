@@ -58,6 +58,27 @@ export interface MetaRow {
   value: number | string;
 }
 
+/** Bookkeeping of the `miti-likes` NIP-78 sync (user-preferences.md). */
+export interface SyncMetaRow {
+  key: string;
+  value: number | string;
+}
+
+export const SYNC_META_KEYS = {
+  /** taste_version at the last successful publish — the sync dirty gate. */
+  likesLastPushedVersion: "likes_last_pushed_version",
+  /** created_at (seconds) of the newest remote doc already merged. */
+  likesLastAppliedAt: "likes_last_applied_at",
+  /** Id of our last published miti-likes event — echo-skip on the live sub. */
+  likesLastPublishedId: "likes_last_published_id",
+  /**
+   * 1 while a merge-triggered replay has been requested but not completed by
+   * the worker — re-requested on the next startup so a replay lost to a tab
+   * close still happens.
+   */
+  likesReplayPending: "likes_replay_pending",
+} as const;
+
 export const META_KEYS = {
   /** Corpus token total: Σ count over all words. idf needs it. */
   T: "T",
@@ -78,6 +99,7 @@ export class TasteDB extends Dexie {
   event_taste!: Table<EventTasteRow, string>;
   indexed_events!: Table<IndexedEventRow, string>;
   meta!: Table<MetaRow, string>;
+  sync_meta!: Table<SyncMetaRow, string>;
 
   constructor() {
     super("miti-taste");
@@ -87,6 +109,10 @@ export class TasteDB extends Dexie {
       event_taste: "coordinate, clicked_like, updated_at",
       indexed_events: "coordinate",
       meta: "key",
+    });
+    // Phase 5: the miti-likes sync bookkeeping (user-preferences.md).
+    this.version(2).stores({
+      sync_meta: "key",
     });
   }
 }
@@ -107,6 +133,31 @@ export async function getMetaNumber(
 ): Promise<number> {
   const row = await database.meta.get(key);
   return typeof row?.value === "number" ? row.value : fallback;
+}
+
+export async function getSyncMetaNumber(
+  database: TasteDB,
+  key: string,
+  fallback = 0
+): Promise<number> {
+  const row = await database.sync_meta.get(key);
+  return typeof row?.value === "number" ? row.value : fallback;
+}
+
+export async function getSyncMetaString(
+  database: TasteDB,
+  key: string
+): Promise<string | null> {
+  const row = await database.sync_meta.get(key);
+  return typeof row?.value === "string" ? row.value : null;
+}
+
+export async function setSyncMeta(
+  database: TasteDB,
+  key: string,
+  value: number | string
+): Promise<void> {
+  await database.sync_meta.put({ key, value });
 }
 
 /** Fired (main thread only) after cached event scores were invalidated. */

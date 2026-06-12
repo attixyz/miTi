@@ -4,7 +4,7 @@
 // freezes the UI. The worker owns `index_event` (incremental) and the batch
 // reindex (full rebuild); the main thread only reads the DB.
 
-import { getTasteDb, getMetaNumber, META_KEYS } from "./db";
+import { getTasteDb, getMetaNumber, META_KEYS, SYNC_META_KEYS } from "./db";
 import type { TasteDB, WordRow } from "./db";
 import { filteredWords, elementsFingerprint, docWordWeights } from "./tokenizer";
 import type { EventDoc, TasteElementSettings } from "./tokenizer";
@@ -42,6 +42,20 @@ async function handle(msg: TasteWorkerRequest): Promise<void> {
       indexed: msg.docs.length,
       needsReindex: false,
     });
+    return;
+  }
+
+  if (msg.type === "replay") {
+    const stored = (await db.meta.get(META_KEYS.elementsFingerprint))?.value;
+    if (stored !== undefined && stored !== elementsFingerprint(msg.settings)) {
+      // The counts were built under another element selection — replaying
+      // over them would mix the two. A full rebuild replays anyway.
+      await reindexAll(db, msg.docs, msg.settings);
+    } else {
+      await replayScores(db, msg.docs, msg.settings);
+    }
+    await db.sync_meta.put({ key: SYNC_META_KEYS.likesReplayPending, value: 0 });
+    ctx.postMessage({ type: "done", mode: "replay", indexed: 0, needsReindex: false });
     return;
   }
 
@@ -156,6 +170,51 @@ function replayFeedback(
     }
   }
   return scores;
+}
+
+/**
+ * Rebuild every word's like_score from scratch by replaying ALL stored
+ * feedback rows over the EXISTING corpus counts (user-preferences.md,
+ * "Merging" — run after a sync merge changed event_taste). Unlike a reindex,
+ * counts and T stay untouched. Rows whose event is not among the given docs
+ * stay dormant until a later replay/reindex knows their doc; a live click
+ * racing this rebuild self-corrects the same way — the rows are the truth,
+ * every replay rebuilds from them.
+ */
+async function replayScores(
+  db: TasteDB,
+  docs: EventDoc[],
+  settings: TasteElementSettings
+): Promise<void> {
+  const docsByCoordinate = new Map(docs.map((d) => [d.coordinate, d]));
+
+  await db.transaction("rw", db.words, db.event_taste, db.meta, async () => {
+    const T = await getMetaNumber(db, META_KEYS.T);
+    const wordRows = await db.words.toArray();
+    const counts = new Map(wordRows.map((r) => [r.word, r.count]));
+    const feedback = (await db.event_taste.toArray()).map((row) => ({
+      coordinate: row.coordinate,
+      points: appliedRowPoints(row),
+    }));
+    const scores = replayFeedback(feedback, docsByCoordinate, counts, T, settings);
+
+    const changed: WordRow[] = [];
+    for (const row of wordRows) {
+      const next = scores.get(row.word) ?? 0;
+      scores.delete(row.word);
+      if (next !== row.like_score) changed.push({ ...row, like_score: next });
+    }
+    // Words replayed but not counted yet (doc registered, index batch still
+    // pending): keep the score on a count-0 row; the batch adds the counts.
+    for (const [word, like_score] of scores) {
+      if (like_score !== 0) changed.push({ word, count: 0, like_score });
+    }
+    if (changed.length > 0) await db.words.bulkPut(changed);
+
+    // Cached event scores are stale now. taste_version is NOT bumped: it is
+    // the sync dirty flag, and a replay changes no feedback rows.
+    await db.meta.put({ key: META_KEYS.tasteInvalidatedAt, value: Date.now() });
+  });
 }
 
 /**

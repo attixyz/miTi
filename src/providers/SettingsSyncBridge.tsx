@@ -1,13 +1,15 @@
 "use client";
 
-// Glue between React session state and the settings sync engine. Renders
-// nothing; (re)starts the engine whenever a signing-capable session and an
-// NDK instance are both present, stops it on logout or NDK re-init.
+// Glue between React session state and the two sync engines (miti-setting,
+// miti-likes). Renders nothing; (re)starts the engines whenever a
+// signing-capable session and an NDK instance are both present, stops them on
+// logout or NDK re-init.
 
 import { useEffect, useState } from "react";
 import { useNdk } from "nostr-hooks";
 import { useActiveUser } from "@/hooks/useActiveUser";
 import { startSettingsSync, stopSettingsSync } from "@/lib/prefs/settingsSync";
+import { startLikesSync, stopLikesSync } from "@/lib/prefs/likesSync";
 
 export function SettingsSyncBridge() {
   const { ndk } = useNdk();
@@ -36,7 +38,11 @@ export function SettingsSyncBridge() {
   useEffect(() => {
     if (!ndk || !user || !canSign) return;
     startSettingsSync(ndk, user.pubkey);
-    return () => stopSettingsSync();
+    startLikesSync(ndk, user.pubkey);
+    return () => {
+      stopLikesSync();
+      stopSettingsSync();
+    };
   }, [ndk, user, canSign]);
 
   return null;
