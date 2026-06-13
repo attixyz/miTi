@@ -21,6 +21,7 @@ import {
   getEventStart,
 } from "../events/eventsStore";
 import { NovaEventCard } from "../events/NovaEventCard";
+import { ScrollToTop } from "../layout/ScrollToTop";
 
 const NO_EVENTS: NDKEvent[] = [];
 
@@ -143,6 +144,8 @@ export function SuggestedPage() {
           )}
         </>
       )}
+
+      <ScrollToTop />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import type { ListSort } from "./useNovaEvents";
 import { DaySwitcher } from "./DaySwitcher";
 import { TagFilterChips } from "./TagFilterChips";
 import { NovaEventCard } from "./NovaEventCard";
+import { ScrollToTop } from "../layout/ScrollToTop";
 
 /**
  * The /list page — and, with `fixedTag`, the /tag/[name] page: same day and
@@ -158,6 +159,8 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
           </>
         )}
       </div>
+
+      <ScrollToTop />
     </div>
   );
 }
