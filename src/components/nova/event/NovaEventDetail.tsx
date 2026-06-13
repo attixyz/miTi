@@ -2,9 +2,18 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { nip19 } from "nostr-tools";
-import { ArrowLeft, Share2, CalendarDays, MapPin, Link2, CalendarX } from "lucide-react";
+import {
+  ArrowLeft,
+  Share2,
+  CalendarDays,
+  MapPin,
+  Link2,
+  CalendarX,
+  Expand,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
 import { useNovaEvent } from "./useNovaEvent";
@@ -15,11 +24,23 @@ import { NovaEventMap } from "./NovaEventMap";
 import { NovaEventRsvp } from "./NovaEventRsvp";
 import { NovaAddToCalendar } from "./NovaAddToCalendar";
 import { ExpandableText } from "./ExpandableText";
+import { ScrollToTop } from "../layout/ScrollToTop";
+
+// Loads the lightbox (and yet-another-react-lightbox) only after the first tap
+// on the cover, keeping it out of the initial detail-page bundle.
+const NovaCoverLightbox = dynamic(
+  () => import("./NovaCoverLightbox").then((m) => m.NovaCoverLightbox),
+  { ssr: false }
+);
 
 export function NovaEventDetail({ eventId }: { eventId: string }) {
   const router = useRouter();
   const { event, loading, notFound } = useNovaEvent(eventId);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Stays true after the first open so the lightbox keeps mounting (and its
+  // close animation runs) without re-fetching the chunk.
+  const [lightboxMounted, setLightboxMounted] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
   // The event's own naddr, used to strip self-referential `r` links.
@@ -103,8 +124,8 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
 
   return (
     <div className="max-w-[1100px] mx-auto px-[var(--margin-mobile)] md:px-[var(--margin-desktop)] py-3 md:py-6">
-      {/* Back / share row */}
-      <div className="flex items-center justify-between mb-3 md:mb-5">
+      {/* Back row */}
+      <div className="flex items-center mb-3 md:mb-5">
         <button
           onClick={() => router.back()}
           aria-label="Go back"
@@ -112,13 +133,6 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
         >
           <ArrowLeft size={18} />
           Back
-        </button>
-        <button
-          onClick={handleShare}
-          aria-label="Share event"
-          className="flex items-center justify-center w-9 h-9 rounded-full text-on-surface-variant hover:bg-surface-high transition-colors"
-        >
-          <Share2 size={18} />
         </button>
       </div>
 
@@ -131,17 +145,34 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
               <span className="text-5xl opacity-20">📅</span>
             </div>
             {metadata?.image && (
-              <img
-                src={metadata.image}
-                alt={metadata.title || "Event"}
-                onLoad={() => setImgLoaded(true)}
-                className={cn(
-                  "relative w-full h-full object-cover transition-opacity duration-500",
-                  imgLoaded ? "opacity-100" : "opacity-0"
-                )}
-              />
+              <>
+                <img
+                  src={metadata.image}
+                  alt={metadata.title || "Event"}
+                  onLoad={() => setImgLoaded(true)}
+                  className={cn(
+                    "relative w-full h-full object-cover transition-opacity duration-500",
+                    imgLoaded ? "opacity-100" : "opacity-0"
+                  )}
+                />
+                {/* Tap the cover to open it full-screen with zoom. */}
+                <button
+                  type="button"
+                  aria-label="View full image"
+                  onClick={() => {
+                    setLightboxMounted(true);
+                    setLightboxOpen(true);
+                  }}
+                  className="absolute inset-0 cursor-zoom-in"
+                />
+                {/* Affordance hint; the cover button above handles the click. */}
+                <span className="pointer-events-none absolute bottom-4 left-4 flex items-center justify-center w-9 h-9 rounded-full bg-surface/70 backdrop-blur-md text-on-surface shadow-lg">
+                  <Expand size={16} />
+                </span>
+              </>
             )}
-            {/* Like + flag actions overlay (available as soon as the event is) */}
+            {/* Like + flag actions overlay — rendered after the cover button so
+                it paints (and stays clickable) above it. */}
             {event && <NovaEventActions event={event} />}
           </div>
 
@@ -151,9 +182,18 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
               <InfoSkeleton />
             ) : (
               <>
-                <h1 className="type-headline-lg-mobile md:type-headline-lg text-on-surface">
-                  {metadata.title || "Untitled Event"}
-                </h1>
+                <div className="flex items-start justify-between gap-3">
+                  <h1 className="type-headline-lg-mobile md:type-headline-lg text-on-surface">
+                    {metadata.title || "Untitled Event"}
+                  </h1>
+                  <button
+                    onClick={handleShare}
+                    aria-label="Share event"
+                    className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full text-on-surface-variant hover:bg-surface-high transition-colors"
+                  >
+                    <Share2 size={18} />
+                  </button>
+                </div>
 
                 <NovaEventHost pubkey={event?.pubkey} />
 
@@ -296,6 +336,17 @@ export function NovaEventDetail({ eventId }: { eventId: string }) {
           </div>
         </div>
       </div>
+
+      {lightboxMounted && metadata?.image && (
+        <NovaCoverLightbox
+          open={lightboxOpen}
+          close={() => setLightboxOpen(false)}
+          src={metadata.image}
+          alt={metadata.title || "Event"}
+        />
+      )}
+
+      <ScrollToTop />
     </div>
   );
 }
