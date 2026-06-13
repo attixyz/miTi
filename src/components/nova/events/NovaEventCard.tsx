@@ -5,11 +5,21 @@ import Link from "next/link";
 import { nip19 } from "nostr-tools";
 import { Clock, MapPin, Navigation } from "lucide-react";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
-import dayjs from "dayjs";
 import { cn } from "@/lib/utils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
-import { getEventStart } from "./useNovaEvents";
+import {
+  formatInZone,
+  tzAbbreviation,
+  TIME_OPTS,
+} from "../event/eventSchedule";
 import { EventCardActions } from "./EventCardActions";
+
+// Compact date used on multi-day feeds, e.g. "Thu, Oct 15" (no year).
+const CARD_DATE_OPTS: Intl.DateTimeFormatOptions = {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+};
 
 function getEventHref(event: NDKEvent): string {
   try {
@@ -25,28 +35,44 @@ function getEventHref(event: NDKEvent): string {
   }
 }
 
+// Times render in the event's own timezone (start_tzid/end_tzid) — matching the
+// detail page (eventSchedule.ts) — not the viewer's browser zone. Invalid IANA
+// ids fall back to local via formatInZone.
 function formatEventTime(event: NDKEvent, showDate = false): string {
-  const start = getEventStart(event);
-  // On feeds that mix multiple days (e.g. /suggested) the card carries the
-  // date too; day-scoped feeds (the list's day switcher) leave it off.
-  const datePart = showDate && start ? start.format("ddd, MMM D") : "";
+  const metadata = getEventMetadata(event);
 
-  // Date-based events (31922) have no specific time — they run all day.
+  // Date-based events (31922) run all day; `start` is an ISO date string.
   if (event.kind === 31922) {
+    if (!metadata.start) return "";
+    // On feeds that mix multiple days (e.g. /suggested) the card carries the
+    // date too; day-scoped feeds (the list's day switcher) leave it off.
+    const date = new Date(`${metadata.start}T00:00:00`);
+    const datePart =
+      showDate && !isNaN(date.getTime())
+        ? formatInZone(date, CARD_DATE_OPTS)
+        : "";
     return datePart ? `${datePart} · All day` : "All day";
   }
 
-  // Time-based events (31923) without a start time show only the date (if any).
-  const metadata = getEventMetadata(event);
-  if (!metadata.start || !start) return datePart;
+  // Time-based events (31923): `start`/`end` are Unix timestamps.
+  if (!metadata.start) return "";
+  const startTs = parseInt(metadata.start, 10);
+  if (isNaN(startTs)) return "";
+  const startDate = new Date(startTs * 1000);
+  const startTz = metadata.start_tzid || undefined;
 
-  let timePart = start.format("h:mm A");
-  if (metadata.end) {
-    const endTs = parseInt(metadata.end);
-    if (!isNaN(endTs)) {
-      timePart = `${timePart} – ${dayjs.unix(endTs).format("h:mm A")}`;
-    }
+  const datePart = showDate ? formatInZone(startDate, CARD_DATE_OPTS, startTz) : "";
+
+  let timePart = formatInZone(startDate, TIME_OPTS, startTz);
+  const endTs = metadata.end ? parseInt(metadata.end, 10) : NaN;
+  if (!isNaN(endTs)) {
+    const endTz = metadata.end_tzid || startTz;
+    timePart = `${timePart} – ${formatInZone(new Date(endTs * 1000), TIME_OPTS, endTz)}`;
   }
+
+  // Tag the zone so viewers know it isn't their local time (e.g. "7:00 PM JST").
+  const abbr = tzAbbreviation(startDate, startTz);
+  if (abbr) timePart = `${timePart} ${abbr}`;
 
   return datePart ? `${datePart} · ${timePart}` : timePart;
 }

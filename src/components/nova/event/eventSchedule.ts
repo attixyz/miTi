@@ -29,7 +29,7 @@ function locale(): string {
 }
 
 /** Returns the short timezone abbreviation (e.g. "EST", "GMT+9") for a date. */
-function tzAbbreviation(date: Date, tzid?: string | null): string {
+export function tzAbbreviation(date: Date, tzid?: string | null): string {
   if (!tzid) return "";
   try {
     const parts = new Intl.DateTimeFormat(locale(), {
@@ -42,7 +42,7 @@ function tzAbbreviation(date: Date, tzid?: string | null): string {
   }
 }
 
-function formatInZone(
+export function formatInZone(
   date: Date,
   options: Intl.DateTimeFormatOptions,
   tzid?: string | null
@@ -65,7 +65,7 @@ const DATE_OPTS: Intl.DateTimeFormatOptions = {
   year: "numeric",
 };
 
-const TIME_OPTS: Intl.DateTimeFormatOptions = {
+export const TIME_OPTS: Intl.DateTimeFormatOptions = {
   hour: "numeric",
   minute: "2-digit",
 };
