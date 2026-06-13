@@ -30,7 +30,8 @@
     "remove": "Remove",
     "cancel": "Cancel",
     "posting": "Posting...",
-    "changeLanguage": "Change Language"
+    "changeLanguage": "Change Language",
+    "recommendApp": "Recommend miTi"
   },
   "createCalendar": {
     "title": "New Calendar",

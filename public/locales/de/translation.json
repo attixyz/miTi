@@ -96,7 +96,8 @@
     "cancel": "Abbrechen",
     "loading": "Laden...",
     "posting": "Posting ...",
-    "changeLanguage": "Sprache ändern"
+    "changeLanguage": "Sprache ändern",
+    "recommendApp": "miTi weiterempfehlen"
   },
   "logout": "Ausloggen",
   "theme": {

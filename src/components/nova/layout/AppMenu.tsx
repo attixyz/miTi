@@ -11,12 +11,14 @@ import {
   Moon,
   Globe,
   Check,
+  Share2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useActiveUser } from "@/hooks/useActiveUser";
 import { useTheme } from "@/hooks/useTheme";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/lib/utils";
+import { shareApp } from "@/lib/shareApp";
 
 /** nostr-login is driven by events dispatched on `document` (see its README). */
 function launchNostrLogin(startScreen?: string) {
@@ -147,6 +149,20 @@ export function AppMenu() {
             {theme === "dark"
               ? t("theme.light", "Light mode")
               : t("theme.dark", "Dark mode")}
+          </button>
+
+          {/* Recommend the app — opens the native share sheet with the app URL */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              void shareApp();
+              setOpen(false);
+            }}
+            className={itemClass}
+          >
+            <Share2 size={18} />
+            {t("common.recommendApp", "Recommend miTi")}
           </button>
 
           <div className="my-1.5 h-px bg-outline-variant/30" />

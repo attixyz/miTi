@@ -96,7 +96,8 @@
     "change": "Cambiar",
     "remove": "Eliminar",
     "cancel": "Cancelar",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "recommendApp": "Recomendar miTi"
   },
   "logout": "Cerrar sesión",
   "theme": {

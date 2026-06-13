@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarHeart, Globe, Code, Users } from "lucide-react";
+import { CalendarHeart, Globe, Code, Users, Share2 } from "lucide-react";
+import { shareApp } from "@/lib/shareApp";
 
 const GITHUB_REPO = "https://github.com/attixyz/miTi";
 const NOSTR_PROTOCOL = "https://github.com/nostr-protocol/nostr";
@@ -92,6 +93,22 @@ export function NovaAboutPage() {
               </li>
             ))}
           </ul>
+        </Section>
+
+        <Section icon={<Share2 size={20} />} title="Recommend miTi">
+          <p>
+            Enjoying miTi? The best way to help is to share it. Send a link to a
+            friend who organises or goes to events: the more people on the
+            network, the more there is to discover.
+          </p>
+          <button
+            type="button"
+            onClick={() => void shareApp()}
+            className="mt-1 inline-flex w-fit items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
+          >
+            <Share2 size={16} />
+            Recommend this app
+          </button>
         </Section>
       </div>
     </div>
