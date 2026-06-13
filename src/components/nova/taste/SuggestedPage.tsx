@@ -9,14 +9,12 @@ import { Sparkles, MapPin } from "lucide-react";
 import { useFilters } from "@/providers/FiltersContext";
 import { useEventCoordinates } from "@/components/nova/map/useEventCoordinates";
 import { calculateDistance } from "@/utils/location/locationUtils";
-import {
-  useTasteRows,
-  eventCoordinate,
-  isRemovedFromView,
-} from "@/lib/taste/feedback";
-import { useEventScores, scoreOf } from "@/lib/taste/scores";
+import { eventCoordinate } from "@/lib/taste/feedback";
+import { scoreOf } from "@/lib/taste/scores";
+import { useVisibleEvents } from "@/lib/taste/visibility";
 import { suggestedScore } from "@/lib/taste/scoring";
 import { useSuggestedKnobs } from "@/lib/taste/tunables";
+import { useProgressiveCount } from "@/hooks/useProgressiveCount";
 import {
   useEventsStore,
   ensureFreshEvents,
@@ -37,24 +35,18 @@ export function SuggestedPage() {
   const { ndk } = useNdk();
   const { location } = useFilters();
   const { events: storeEvents, loading } = useEventsStore();
-  const tasteRows = useTasteRows();
   const knobs = useSuggestedKnobs();
 
   useEffect(() => {
     if (ndk) ensureFreshEvents(ndk);
   }, [ndk]);
 
-  // Hidden/reported events never get suggested.
-  const visible = useMemo(
-    () =>
-      storeEvents.filter((e) => {
-        const coordinate = eventCoordinate(e);
-        return !isRemovedFromView(coordinate ? tasteRows.get(coordinate) : undefined);
-      }),
-    [storeEvents, tasteRows]
-  );
-
-  const scores = useEventScores(visible);
+  // Shared feed visibility gate (visibility.ts): user-hidden/reported events,
+  // plus the algorithmic spam signals (low_like_score, short_text), drop out —
+  // the same gate /list and /map apply, so /suggested can never surface a post
+  // the feed hides. The returned score map is reused for the taste factor below
+  // (no separate scoring pass).
+  const { visible, scores } = useVisibleEvents(storeEvents);
   // Coordinates are only worth resolving when there is an origin to measure
   // from; without one, proximity is 1 for every event and drops out.
   const { coordsById, resolving } = useEventCoordinates(
@@ -89,6 +81,13 @@ export function SuggestedPage() {
       })
       .sort((a, b) => b.score - a.score);
   }, [visible, scores, coordsById, location, knobs]);
+
+  // Only mount a growing slice of the ranked list (see useProgressiveCount);
+  // changing the location origin reorders everything, so restart from the top.
+  const { visibleCount, sentinelRef, hasMore } = useProgressiveCount(
+    ranked.length,
+    { resetKey: location?.label ?? "" }
+  );
 
   return (
     <div className="px-[var(--margin-mobile)] md:px-[var(--margin-desktop)] py-6">
@@ -126,7 +125,7 @@ export function SuggestedPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ranked.map(({ event, distanceKm }) => (
+            {ranked.slice(0, visibleCount).map(({ event, distanceKm }) => (
               <NovaEventCard
                 key={event.id}
                 event={event}
@@ -135,6 +134,8 @@ export function SuggestedPage() {
               />
             ))}
           </div>
+          {/* Sentinel: scrolling it into view reveals the next batch. */}
+          {hasMore && <div ref={sentinelRef} aria-hidden className="h-1" />}
           {location && resolving && (
             <p className="mt-4 text-xs text-on-surface-variant/70">
               Still locating some events — the order refines as they resolve.

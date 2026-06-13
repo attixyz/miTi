@@ -2,6 +2,7 @@
 
 import { Search, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useProgressiveCount } from "@/hooks/useProgressiveCount";
 import { useNovaCalendars } from "./useNovaCalendars";
 import { NovaCalendarCard } from "./NovaCalendarCard";
 
@@ -17,6 +18,17 @@ export function NovaCalendarsPage() {
     hideTest,
     setHideTest,
   } = useNovaCalendars();
+
+  // Infinite scroll: mount 8 cards (2 rows on the 4-col grid), grow on scroll.
+  // Any search/filter change resets the window to the top.
+  const { visibleCount, sentinelRef, hasMore } = useProgressiveCount(
+    calendars.length,
+    {
+      initial: 8,
+      batch: 8,
+      resetKey: `${search}|${hideEmpty}|${hideTest}`,
+    }
+  );
 
   return (
     <div className="flex flex-col gap-5 py-4 px-[var(--margin-mobile)] md:px-[var(--margin-desktop)]">
@@ -66,10 +78,12 @@ export function NovaCalendarsPage() {
               : `Showing ${calendars.length} calendar${calendars.length !== 1 ? "s" : ""}`}
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {calendars.map((calendar) => (
+            {calendars.slice(0, visibleCount).map((calendar) => (
               <NovaCalendarCard key={calendar.id} calendar={calendar} />
             ))}
           </div>
+          {/* Sentinel: scrolling it into view reveals the next batch. */}
+          {hasMore && <div ref={sentinelRef} aria-hidden className="h-1" />}
         </>
       )}
     </div>

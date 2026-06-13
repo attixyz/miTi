@@ -3,6 +3,7 @@
 import dayjs from "dayjs";
 import { Loader2, MapPin, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useProgressiveCount } from "@/hooks/useProgressiveCount";
 import { useNovaEvents } from "./useNovaEvents";
 import type { ListSort } from "./useNovaEvents";
 import { DaySwitcher } from "./DaySwitcher";
@@ -35,6 +36,19 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
     radiusKm,
     locationResolving,
   } = useNovaEvents({ fixedTag });
+
+  // Infinite scroll: mount a growing slice of the day's events (see
+  // useProgressiveCount). Any deliberate filter/order change — day, tags, sort,
+  // location, or the pinned tag — snaps the window back to the top; an async
+  // taste re-sort does not (it's absent from the reset key).
+  const { visibleCount, sentinelRef, hasMore } = useProgressiveCount(
+    filteredEvents.length,
+    {
+      resetKey: `${selectedDay}|${activeTags.join(",")}|${sortBy}|${
+        locationLabel ?? ""
+      }|${radiusKm ?? ""}|${fixedTag ?? ""}`,
+    }
+  );
 
   const selectedDayjs = dayjs(selectedDay);
   const isToday = selectedDayjs.isSame(dayjs(), "day");
@@ -129,15 +143,19 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
             <EmptyState totalCount={totalCount} locationActive={locationActive} />
           )
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredEvents.map((event) => (
-              <NovaEventCard
-                key={event.id}
-                event={event}
-                distanceKm={distanceById[event.id] ?? null}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredEvents.slice(0, visibleCount).map((event) => (
+                <NovaEventCard
+                  key={event.id}
+                  event={event}
+                  distanceKm={distanceById[event.id] ?? null}
+                />
+              ))}
+            </div>
+            {/* Sentinel: scrolling it into view reveals the next batch. */}
+            {hasMore && <div ref={sentinelRef} aria-hidden className="h-1" />}
+          </>
         )}
       </div>
     </div>
