@@ -15,7 +15,6 @@ import type { Map as LeafletMap } from "leaflet";
 import Link from "next/link";
 import { nip19 } from "nostr-tools";
 import { Clock, MapPin, ArrowRight } from "lucide-react";
-import dayjs from "dayjs";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
 import type { MapEvent } from "./useNovaMapEvents";
 import {
@@ -24,7 +23,8 @@ import {
   type MapView,
 } from "@/providers/FiltersContext";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
-import { getEventStart } from "@/components/nova/events/useNovaEvents";
+import { truncateAtWord } from "@/utils/formatting/text";
+import { formatEventTime } from "@/components/nova/events/NovaEventCard";
 import { useTheme } from "@/hooks/useTheme";
 import { MAP_THEME } from "./mapTheme";
 
@@ -39,18 +39,6 @@ function eventHref(event: NDKEvent): string {
   } catch {
     return "#";
   }
-}
-
-function formatTime(event: NDKEvent): string {
-  const meta = getEventMetadata(event);
-  if (event.kind === 31922) return meta.start ?? "";
-  const start = getEventStart(event);
-  if (!start) return "";
-  const startStr = start.format("h:mm A");
-  if (!meta.end) return startStr;
-  const endTs = parseInt(meta.end);
-  if (isNaN(endTs)) return startStr;
-  return `${startStr} – ${dayjs.unix(endTs).format("h:mm A")}`;
 }
 
 /** Fires once the leaflet map exists so the parent can drive zoom controls. */
@@ -217,14 +205,20 @@ export function EventMap({ events, center, onMapReady }: EventMapProps) {
 
 function MapPopupCard({ event }: { event: NDKEvent }) {
   const meta = getEventMetadata(event);
-  const time = formatTime(event);
+  const time = formatEventTime(event);
   const category = meta.hashtags[0] as string | undefined;
+  const summary = meta.shortDescription as string | undefined;
 
   return (
     <div className="min-w-[200px] max-w-[240px] font-sans">
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h3 className="text-sm font-semibold text-on-surface leading-snug line-clamp-2">
-          {meta.title || "Untitled Event"}
+        <h3 className="text-sm font-semibold leading-snug line-clamp-2">
+          <Link
+            href={eventHref(event)}
+            className="miti-popup-title hover:underline"
+          >
+            {meta.title || "Untitled Event"}
+          </Link>
         </h3>
         {category && (
           <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-secondary bg-secondary-container/30 px-1.5 py-0.5 rounded-full">
@@ -247,6 +241,12 @@ function MapPopupCard({ event }: { event: NDKEvent }) {
           </div>
         )}
       </div>
+
+      {summary && (
+        <p className="text-xs text-on-surface-variant line-clamp-3 mb-2.5">
+          {truncateAtWord(summary)}
+        </p>
+      )}
 
       <Link
         href={eventHref(event)}

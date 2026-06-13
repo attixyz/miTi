@@ -7,6 +7,7 @@ import { Clock, MapPin, Navigation } from "lucide-react";
 import type { NDKEvent } from "@nostr-dev-kit/ndk";
 import { cn } from "@/lib/utils";
 import { getEventMetadata } from "@/utils/nostr/eventUtils";
+import { truncateAtWord } from "@/utils/formatting/text";
 import {
   formatInZone,
   tzAbbreviation,
@@ -37,8 +38,9 @@ function getEventHref(event: NDKEvent): string {
 
 // Times render in the event's own timezone (start_tzid/end_tzid) — matching the
 // detail page (eventSchedule.ts) — not the viewer's browser zone. Invalid IANA
-// ids fall back to local via formatInZone.
-function formatEventTime(event: NDKEvent, showDate = false): string {
+// ids fall back to local via formatInZone. Exported so the map popup
+// (EventMap.tsx) renders identical, tz-aware times to these feed cards.
+export function formatEventTime(event: NDKEvent, showDate = false): string {
   const metadata = getEventMetadata(event);
 
   // Date-based events (31922) run all day; `start` is an ISO date string.
@@ -166,7 +168,7 @@ export function NovaEventCard({
 
           {summary && (
             <p className="type-body-sm text-on-surface-variant line-clamp-3">
-              {summary.length > 140 ? `${summary.slice(0, 140)}…` : summary}
+              {truncateAtWord(summary)}
             </p>
           )}
         </div>

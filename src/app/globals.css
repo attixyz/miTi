@@ -339,6 +339,16 @@
 .leaflet-container a.leaflet-popup-close-button:hover {
   color: var(--on-surface) !important;
 }
+/* Next.js <Link> anchors inside our map popups (MapPopupCard). Leaflet's stock */
+/* `.leaflet-container a` blue (0,1,1) outranks Tailwind utilities (0,1,0), so   */
+/* the theme colors are set here — prefixed `[data-theme]` to outrank Leaflet —  */
+/* not via `text-primary`/`text-on-surface` on the elements, which never win.    */
+[data-theme] .leaflet-popup-content a {
+  color: var(--primary);
+}
+[data-theme] .leaflet-popup-content a.miti-popup-title {
+  color: var(--on-surface);
+}
 .leaflet-control-attribution {
   background: color-mix(in srgb, var(--surface) 80%, transparent) !important;
   color: var(--on-surface-variant) !important;
