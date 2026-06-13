@@ -78,33 +78,30 @@ function MapViewTracker({ onChange }: { onChange: (view: MapView) => void }) {
 }
 
 /**
- * Fits all of the day's pins into view once per day (keyed by `fitKey`). The
- * camera itself is restored from the persisted view (set on mount by EventMap),
- * which is what aims the map at a filter location — so this only fits when no
- * filter is active and no view was restored for the current day. A later day
- * change still refits.
+ * Auto-fits all pins into view exactly ONCE — the first time the map has events
+ * to show and no camera was restored (no active filter, no persisted view).
+ * After that the camera is left alone, so switching days keeps the current
+ * center and zoom rather than re-fitting to the new day's pins.
  */
 function MapController({
   center,
   events,
-  fitKey,
   initialView,
 }: {
   center: FilterLocation | null;
   events: MapEvent[];
-  fitKey: string;
   initialView: MapView | null;
 }) {
   const map = useMap();
-  // Seed as already-fitted for the mount-time day so a restored view (from
-  // navigation or a filter) isn't overridden; a later day change still refits.
-  const fittedKeyRef = useRef<string | null>(initialView ? fitKey : null);
+  // A restored view (from navigation or a filter) counts as already-fitted, so
+  // the auto-fit never overrides it.
+  const hasFittedRef = useRef<boolean>(initialView != null);
 
   useEffect(() => {
     if (center) return; // a filter is active → map opens at the restored camera
-    if (fittedKeyRef.current === fitKey) return;
+    if (hasFittedRef.current) return;
     if (events.length === 0) return;
-    fittedKeyRef.current = fitKey;
+    hasFittedRef.current = true;
 
     if (events.length === 1) {
       map.setView([events[0].lat, events[0].lon], 12);
@@ -119,7 +116,7 @@ function MapController({
       ],
       { padding: [60, 60], maxZoom: 13 }
     );
-  }, [events, fitKey, center, map]);
+  }, [events, center, map]);
 
   return null;
 }
@@ -175,16 +172,9 @@ interface EventMapProps {
   events: MapEvent[];
   center: FilterLocation | null;
   onMapReady?: (map: LeafletMap) => void;
-  /** Re-fit the view when this changes (e.g. the selected day). */
-  fitKey: string;
 }
 
-export function EventMap({
-  events,
-  center,
-  onMapReady,
-  fitKey,
-}: EventMapProps) {
+export function EventMap({ events, center, onMapReady }: EventMapProps) {
   const { theme } = useTheme();
   const c = MAP_THEME[theme];
   const { getMapView, setMapView } = useFilters();
@@ -216,7 +206,6 @@ export function EventMap({
       <MapController
         center={center}
         events={events}
-        fitKey={fitKey}
         initialView={initialView}
       />
       <MapViewTracker onChange={setMapView} />

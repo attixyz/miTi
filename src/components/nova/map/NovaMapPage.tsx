@@ -24,12 +24,7 @@ export function NovaMapPage() {
   // fills the viewport beneath the top bar (the floating nav overlays it).
   return (
     <div className="relative -mb-28 md:mb-0 w-full overflow-hidden h-[calc(100dvh-3.25rem)] md:h-[calc(100dvh-4.25rem)]">
-      <EventMap
-        events={m.mapEvents}
-        center={location}
-        onMapReady={setMap}
-        fitKey={m.selectedDay}
-      />
+      <EventMap events={m.mapEvents} center={location} onMapReady={setMap} />
 
       {/* Top overlay: the day switcher */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1100] flex flex-col gap-2">
