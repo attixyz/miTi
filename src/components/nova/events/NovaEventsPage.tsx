@@ -20,6 +20,7 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
     fetching,
     refresh,
     filteredEvents,
+    distanceById,
     availableTags,
     activeTags,
     toggleTag,
@@ -27,6 +28,7 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
     setSelectedDay,
     sortBy,
     setSortBy,
+    canSortByDistance,
     totalCount,
     locationActive,
     locationLabel,
@@ -83,7 +85,11 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
                     : `${filteredEvents.length} event${filteredEvents.length !== 1 ? "s" : ""}`}
                 </span>
               )}
-              <SortToggle sortBy={sortBy} onChange={setSortBy} />
+              <SortToggle
+                sortBy={sortBy}
+                onChange={setSortBy}
+                canSortByDistance={canSortByDistance}
+              />
               <button
                 type="button"
                 aria-label="Refresh events"
@@ -125,7 +131,11 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredEvents.map((event) => (
-              <NovaEventCard key={event.id} event={event} />
+              <NovaEventCard
+                key={event.id}
+                event={event}
+                distanceKm={distanceById[event.id] ?? null}
+              />
             ))}
           </div>
         )}
@@ -134,17 +144,24 @@ export function NovaEventsPage({ fixedTag }: { fixedTag?: string }) {
   );
 }
 
-/** Order the day's events by start time or by learned taste (like_score). */
+/**
+ * Order the day's events by learned taste (like_score) or by distance from the
+ * location filter. Distance needs a center point, so it's disabled until the
+ * user sets a place (a city or "Near me"); with "Anywhere" set there's nothing
+ * to measure from.
+ */
 function SortToggle({
   sortBy,
   onChange,
+  canSortByDistance,
 }: {
   sortBy: ListSort;
   onChange: (sort: ListSort) => void;
+  canSortByDistance: boolean;
 }) {
-  const options: { value: ListSort; label: string }[] = [
-    { value: "time", label: "Time" },
-    { value: "taste", label: "Taste" },
+  const options: { value: ListSort; label: string; disabled: boolean }[] = [
+    { value: "taste", label: "Taste", disabled: false },
+    { value: "distance", label: "Distance", disabled: !canSortByDistance },
   ];
   return (
     <div
@@ -152,17 +169,24 @@ function SortToggle({
       aria-label="Sort events"
       className="flex overflow-hidden rounded-full border border-outline-variant/40"
     >
-      {options.map(({ value, label }) => (
+      {options.map(({ value, label, disabled }) => (
         <button
           key={value}
           type="button"
           aria-pressed={sortBy === value}
+          disabled={disabled}
+          title={
+            disabled
+              ? "Set a location filter (a place or “Near me”) to sort by distance"
+              : undefined
+          }
           onClick={() => onChange(value)}
           className={cn(
             "px-2.5 py-1 text-[11px] font-semibold transition-colors",
             sortBy === value
               ? "bg-primary text-on-primary"
-              : "text-on-surface-variant hover:bg-surface-high"
+              : "text-on-surface-variant hover:bg-surface-high",
+            disabled && "cursor-not-allowed opacity-40 hover:bg-transparent"
           )}
         >
           {label}
